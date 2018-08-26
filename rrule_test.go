@@ -46,6 +46,29 @@ var cases = []struct {
 		Dates:    []string{"2018-09-04T09:08:07Z", "2018-10-02T09:08:07Z", "2018-11-06T09:08:07Z"},
 		Terminal: true,
 	},
+
+	{
+		Name: "simple weekly",
+		RRule: RRule{
+			Frequency: Weekly,
+			Count:     3,
+			Dtstart:   now,
+		},
+		Dates:    []string{"2018-08-25T09:08:07Z", "2018-09-01T09:08:07Z", "2018-09-08T09:08:07Z"},
+		Terminal: true,
+	},
+
+	{
+		Name: "weekly by weekday",
+		RRule: RRule{
+			Frequency:  Weekly,
+			Count:      3,
+			Dtstart:    now,
+			ByWeekdays: []QualifiedWeekday{{WD: time.Tuesday}},
+		},
+		Dates:    []string{"2018-08-28T09:08:07Z", "2018-09-04T09:08:07Z", "2018-09-11T09:08:07Z"},
+		Terminal: true,
+	},
 }
 
 func TestRRule(t *testing.T) {

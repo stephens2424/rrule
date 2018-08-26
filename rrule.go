@@ -224,6 +224,8 @@ func (rrule RRule) Iterator() Iterator {
 	switch rrule.Frequency {
 	case Daily:
 		return setDaily(rrule)
+	case Weekly:
+		return setWeekly(rrule)
 	case Monthly:
 		return setMonthly(rrule)
 	default:
@@ -321,6 +323,51 @@ func setDaily(rrule RRule) *iterator {
 	}
 }
 
+func setWeekly(rrule RRule) *iterator {
+	start := rrule.Dtstart
+	if start.IsZero() {
+		start = time.Now()
+	}
+
+	interval := 1
+	if rrule.Interval != 0 {
+		interval = rrule.Interval
+	}
+
+	current := start
+
+	return &iterator{
+		minTime:  start,
+		queueCap: rrule.Count,
+		next: func() *time.Time {
+			ret := current // copy current
+			current = current.AddDate(0, 0, interval*7)
+			return &ret
+		},
+
+		valid: func(t time.Time) bool {
+			return checkLimiters(t,
+				validMonth(rrule.ByMonths),
+			)
+		},
+
+		variations: func(t time.Time) []time.Time {
+			tt := expandBySeconds([]time.Time{t}, rrule.BySeconds...)
+			tt = expandByMinutes(tt, rrule.ByMinutes...)
+			tt = expandByHours(tt, rrule.ByHours...)
+			tt = expandByWeekdays(tt, rrule.weekStart(), rrule.ByWeekdays...)
+			return tt
+		},
+	}
+}
+
+func (rrule *RRule) weekStart() time.Weekday {
+	if rrule.WeekStart == nil {
+		return time.Monday
+	}
+	return *rrule.WeekStart
+}
+
 func expandBySeconds(tt []time.Time, seconds ...int) []time.Time {
 	if len(seconds) == 0 {
 		return tt
@@ -366,17 +413,34 @@ func expandByHours(tt []time.Time, hours ...int) []time.Time {
 	return e
 }
 
-func expandByDays(tt []time.Time, weekdays ...time.Weekday) []time.Time {
+func expandByWeekdays(tt []time.Time, weekStart time.Weekday, weekdays ...QualifiedWeekday) []time.Time {
 	if len(weekdays) == 0 {
 		return tt
 	}
 
 	e := make([]time.Time, len(tt)*len(weekdays))
-	for range weekdays {
-		panic("not implemented")
+	for _, t := range tt {
+		t = backToWeekday(t, weekStart)
+		for _, wd := range weekdays {
+			e = append(e, forwardToWeekday(t, wd.WD))
+		}
 	}
 
 	return e
+}
+
+func backToWeekday(t time.Time, day time.Weekday) time.Time {
+	for t.Weekday() != day {
+		t = t.AddDate(0, 0, -1)
+	}
+	return t
+}
+
+func forwardToWeekday(t time.Time, day time.Weekday) time.Time {
+	for t.Weekday() != day {
+		t = t.AddDate(0, 0, 1)
+	}
+	return t
 }
 
 func expandMonthByWeekdays(tt []time.Time, ib InvalidBehavior, weekdays ...QualifiedWeekday) []time.Time {
