@@ -16,6 +16,16 @@ var cases = []struct {
 	Terminal bool
 }{
 	{
+		Name: "simple secondly",
+		RRule: RRule{
+			Frequency: Secondly,
+			Count:     3,
+			Dtstart:   now,
+		},
+		Dates:    []string{"2018-08-25T09:08:07Z", "2018-08-25T09:08:08Z", "2018-08-25T09:08:09Z"},
+		Terminal: true,
+	},
+	{
 		Name: "simple daily",
 		RRule: RRule{
 			Frequency: Daily,

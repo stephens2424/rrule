@@ -24,7 +24,7 @@ type RRule struct {
 	ByMonthDays   []int // 1 to 31
 	ByWeekNumbers []int // 1 to 53
 	ByMonths      []time.Month
-	ByYearDay     []int // 1 to 366
+	ByYearDays    []int // 1 to 366
 	BySetPos      []int // 1 to 366
 
 	IB InvalidBehavior
@@ -222,6 +222,8 @@ func (rrule RRule) All(limit int) []time.Time {
 
 func (rrule RRule) Iterator() Iterator {
 	switch rrule.Frequency {
+	case Secondly:
+		return setSecondly(rrule)
 	case Daily:
 		return setDaily(rrule)
 	case Weekly:
@@ -230,6 +232,47 @@ func (rrule RRule) Iterator() Iterator {
 		return setMonthly(rrule)
 	default:
 		panic("not implemented")
+	}
+}
+
+func setSecondly(rrule RRule) *iterator {
+	start := rrule.Dtstart
+	if start.IsZero() {
+		start = time.Now()
+	}
+
+	interval := 1
+	if rrule.Interval != 0 {
+		interval = rrule.Interval
+	}
+
+	current := start
+
+	return &iterator{
+		minTime:  start,
+		queueCap: rrule.Count,
+		next: func() *time.Time {
+			ret := current // copy current
+			current = current.Add(time.Duration(interval) * time.Second)
+			return &ret
+		},
+
+		valid: func(t time.Time) bool {
+			return true
+			return checkLimiters(t,
+				validMonth(rrule.ByMonths),
+				validWeek(rrule.ByWeekNumbers),
+				validYearDay(rrule.ByYearDays),
+				validMonthDay(rrule.ByMonthDays),
+				validWeekday(rrule.ByWeekdays),
+				validHour(rrule.ByHours),
+				validMinute(rrule.ByMinutes),
+			)
+		},
+
+		variations: func(t time.Time) []time.Time {
+			return []time.Time{t}
+		},
 	}
 }
 
