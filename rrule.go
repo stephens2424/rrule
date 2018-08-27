@@ -1,6 +1,7 @@
 package rrule
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -224,14 +225,20 @@ func (rrule RRule) Iterator() Iterator {
 	switch rrule.Frequency {
 	case Secondly:
 		return setSecondly(rrule)
+	case Minutely:
+		return setMinutely(rrule)
+	case Hourly:
+		return setHourly(rrule)
 	case Daily:
 		return setDaily(rrule)
 	case Weekly:
 		return setWeekly(rrule)
 	case Monthly:
 		return setMonthly(rrule)
+	case Yearly:
+		return setYearly(rrule)
 	default:
-		panic("not implemented")
+		panic(fmt.Sprintf("invalid frequency %v", rrule.Frequency))
 	}
 }
 
@@ -272,6 +279,89 @@ func setSecondly(rrule RRule) *iterator {
 
 		variations: func(t time.Time) []time.Time {
 			return []time.Time{t}
+		},
+	}
+}
+
+func setMinutely(rrule RRule) *iterator {
+	start := rrule.Dtstart
+	if start.IsZero() {
+		start = time.Now()
+	}
+
+	interval := 1
+	if rrule.Interval != 0 {
+		interval = rrule.Interval
+	}
+
+	current := start
+
+	return &iterator{
+		minTime:  start,
+		queueCap: rrule.Count,
+		next: func() *time.Time {
+			ret := current // copy current
+			current = current.Add(time.Duration(interval) * time.Minute)
+			return &ret
+		},
+
+		valid: func(t time.Time) bool {
+			return checkLimiters(t,
+				validMonth(rrule.ByMonths),
+				validWeek(rrule.ByWeekNumbers),
+				validYearDay(rrule.ByYearDays),
+				validMonthDay(rrule.ByMonthDays),
+				validWeekday(rrule.ByWeekdays),
+				validHour(rrule.ByHours),
+				validMinute(rrule.ByMinutes),
+			)
+		},
+
+		variations: func(t time.Time) []time.Time {
+			tt := expandBySeconds([]time.Time{t}, rrule.BySeconds...)
+			return tt
+		},
+	}
+}
+
+func setHourly(rrule RRule) *iterator {
+	start := rrule.Dtstart
+	if start.IsZero() {
+		start = time.Now()
+	}
+
+	interval := 1
+	if rrule.Interval != 0 {
+		interval = rrule.Interval
+	}
+
+	current := start
+
+	return &iterator{
+		minTime:  start,
+		queueCap: rrule.Count,
+		next: func() *time.Time {
+			ret := current // copy current
+			current = current.Add(time.Duration(interval) * time.Hour)
+			return &ret
+		},
+
+		valid: func(t time.Time) bool {
+			return true
+			return checkLimiters(t,
+				validMonth(rrule.ByMonths),
+				validWeek(rrule.ByWeekNumbers),
+				validYearDay(rrule.ByYearDays),
+				validMonthDay(rrule.ByMonthDays),
+				validWeekday(rrule.ByWeekdays),
+				validHour(rrule.ByHours),
+			)
+		},
+
+		variations: func(t time.Time) []time.Time {
+			tt := expandByMinutes([]time.Time{t}, rrule.ByMinutes...)
+			tt = expandBySeconds(tt, rrule.BySeconds...)
+			return tt
 		},
 	}
 }
@@ -404,6 +494,48 @@ func setWeekly(rrule RRule) *iterator {
 	}
 }
 
+func setYearly(rrule RRule) *iterator {
+	start := rrule.Dtstart
+	if start.IsZero() {
+		start = time.Now()
+	}
+
+	interval := 1
+	if rrule.Interval != 0 {
+		interval = rrule.Interval
+	}
+
+	current := start
+
+	return &iterator{
+		minTime:  start,
+		queueCap: rrule.Count,
+		next: func() *time.Time {
+			ret := current // copy current
+			current = current.AddDate(interval, 0, 0)
+			return &ret
+		},
+
+		valid: func(t time.Time) bool {
+			return checkLimiters(t,
+				validMonth(rrule.ByMonths),
+			)
+		},
+
+		variations: func(t time.Time) []time.Time {
+			tt := expandBySeconds([]time.Time{t}, rrule.BySeconds...)
+			tt = expandByMinutes(tt, rrule.ByMinutes...)
+			tt = expandByHours(tt, rrule.ByHours...)
+			// tt = expandByWeekdays(tt, rrule.weekStart(), rrule.ByWeekdays...)
+			tt = expandByMonthDays(tt, rrule.ByMonthDays...)
+			tt = expandByYearDays(tt, rrule.ByYearDays...)
+			tt = expandByWeekNumbers(tt, rrule.weekStart(), rrule.ByWeekNumbers...)
+			tt = expandByMonths(tt, rrule.IB, rrule.ByMonths...)
+			return tt
+		},
+	}
+}
+
 func (rrule *RRule) weekStart() time.Weekday {
 	if rrule.WeekStart == nil {
 		return time.Monday
@@ -461,7 +593,7 @@ func expandByWeekdays(tt []time.Time, weekStart time.Weekday, weekdays ...Qualif
 		return tt
 	}
 
-	e := make([]time.Time, len(tt)*len(weekdays))
+	e := make([]time.Time, 0, len(tt)*len(weekdays))
 	for _, t := range tt {
 		t = backToWeekday(t, weekStart)
 		for _, wd := range weekdays {
@@ -575,10 +707,74 @@ func expandByMonthDays(tt []time.Time, monthdays ...int) []time.Time {
 		return tt
 	}
 
-	e := make([]time.Time, len(tt)*len(monthdays))
+	e := make([]time.Time, 0, len(tt)*len(monthdays))
 	for _, t := range tt {
 		for _, md := range monthdays {
 			e = append(e, time.Date(t.Year(), t.Month(), md, t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location()))
+		}
+	}
+
+	return e
+}
+
+func expandByYearDays(tt []time.Time, yeardays ...int) []time.Time {
+	if len(yeardays) == 0 {
+		return tt
+	}
+
+	e := make([]time.Time, 0, len(tt)*len(yeardays))
+	for _, t := range tt {
+		yearStart := time.Date(t.Year(), time.January, 1, t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location())
+
+		for _, yd := range yeardays {
+			e = append(e, yearStart.AddDate(0, 0, yd))
+		}
+	}
+
+	return e
+}
+
+func expandByWeekNumbers(tt []time.Time, weekStarts time.Weekday, weekNumbers ...int) []time.Time {
+	if len(weekNumbers) == 0 {
+		return tt
+	}
+
+	e := make([]time.Time, 0, len(tt)*len(weekNumbers))
+	for _, t := range tt {
+		yearStart := time.Date(t.Year(), time.January, 1, t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location())
+		yearStart = forwardToWeekday(yearStart, t.Weekday())
+
+		for _, w := range weekNumbers {
+			e = append(e, yearStart.AddDate(0, 0, (w-1)*7))
+		}
+	}
+
+	return e
+}
+
+func expandByMonths(tt []time.Time, ib InvalidBehavior, months ...time.Month) []time.Time {
+	if len(months) == 0 {
+		return tt
+	}
+
+	e := make([]time.Time, 0, len(tt)*len(months))
+	for _, t := range tt {
+		for _, m := range months {
+			set := time.Date(t.Year(), m, t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location())
+			if set.Month() != m {
+				switch ib {
+				case PrevInvalid:
+					set = time.Date(t.Year(), t.Month()+1, -1, t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location())
+					e = append(e, set)
+				case NextInvalid:
+					set = time.Date(t.Year(), t.Month()+1, 1, t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location())
+					e = append(e, set)
+				case OmitInvalid:
+					// do nothing
+				}
+			} else {
+				e = append(e, set)
+			}
 		}
 	}
 

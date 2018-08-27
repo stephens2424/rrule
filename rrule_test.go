@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	rrule "github.com/teambition/rrule-go"
 )
 
 var now = time.Date(2018, 8, 25, 9, 8, 7, 6, time.UTC)
@@ -25,6 +26,28 @@ var cases = []struct {
 		Dates:    []string{"2018-08-25T09:08:07Z", "2018-08-25T09:08:08Z", "2018-08-25T09:08:09Z"},
 		Terminal: true,
 	},
+	{
+		Name: "simple minutely",
+		RRule: RRule{
+			Frequency: Minutely,
+			Count:     3,
+			Dtstart:   now,
+		},
+		Dates:    []string{"2018-08-25T09:08:07Z", "2018-08-25T09:09:07Z", "2018-08-25T09:10:07Z"},
+		Terminal: true,
+	},
+
+	{
+		Name: "simple hourly",
+		RRule: RRule{
+			Frequency: Hourly,
+			Count:     3,
+			Dtstart:   now,
+		},
+		Dates:    []string{"2018-08-25T09:08:07Z", "2018-08-25T10:08:07Z", "2018-08-25T11:08:07Z"},
+		Terminal: true,
+	},
+
 	{
 		Name: "simple daily",
 		RRule: RRule{
@@ -94,11 +117,87 @@ func BenchmarkRRule(b *testing.B) {
 	for _, tc := range cases {
 		b.Run(tc.Name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				dates := tc.RRule.All(0)
-				assert.Equal(b, tc.Dates, rfcAll(dates))
+				tc.RRule.All(0)
 			}
 		})
 	}
+}
+
+func rruleToROption(r RRule) rrule.ROption {
+	converted := rrule.ROption{
+		Dtstart: r.Dtstart,
+
+		Until:    r.Until,
+		Count:    int(r.Count),
+		Interval: r.Interval,
+
+		Bysecond:   r.BySeconds,
+		Byminute:   r.ByMinutes,
+		Byhour:     r.ByHours,
+		Bymonthday: r.ByMonthDays,
+		Byweekno:   r.ByWeekNumbers,
+		Byyearday:  r.ByYearDays,
+		Bysetpos:   r.BySetPos,
+
+		Bymonth:   make([]int, 0, len(r.ByMonths)),
+		Byweekday: make([]rrule.Weekday, 0, len(r.ByWeekdays)),
+	}
+
+	switch r.Frequency {
+	case Secondly:
+		converted.Freq = rrule.SECONDLY
+	case Minutely:
+		converted.Freq = rrule.MINUTELY
+	case Hourly:
+		converted.Freq = rrule.HOURLY
+	case Daily:
+		converted.Freq = rrule.DAILY
+	case Weekly:
+		converted.Freq = rrule.WEEKLY
+	case Monthly:
+		converted.Freq = rrule.MONTHLY
+	case Yearly:
+		converted.Freq = rrule.YEARLY
+	}
+
+	for _, m := range r.ByMonths {
+		converted.Bymonth = append(converted.Bymonth, int(m))
+	}
+	for _, wd := range r.ByWeekdays {
+		switch wd.WD {
+		case time.Sunday:
+			converted.Byweekday = append(converted.Byweekday, rrule.SU)
+		case time.Monday:
+			converted.Byweekday = append(converted.Byweekday, rrule.MO)
+		case time.Tuesday:
+			converted.Byweekday = append(converted.Byweekday, rrule.TU)
+		case time.Wednesday:
+			converted.Byweekday = append(converted.Byweekday, rrule.WE)
+		case time.Thursday:
+			converted.Byweekday = append(converted.Byweekday, rrule.TH)
+		case time.Friday:
+			converted.Byweekday = append(converted.Byweekday, rrule.FR)
+		case time.Saturday:
+			converted.Byweekday = append(converted.Byweekday, rrule.SA)
+		}
+	}
+
+	return converted
+}
+
+func BenchmarkTeambition(b *testing.B) {
+	for _, tc := range cases {
+
+		ro := rruleToROption(tc.RRule)
+
+		b.Run(tc.Name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				teambitionRRule, _ := rrule.NewRRule(ro)
+				teambitionRRule.All()
+			}
+		})
+	}
+
 }
 
 func rfcAll(times []time.Time) []string {
