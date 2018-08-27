@@ -26,7 +26,7 @@ type RRule struct {
 	ByWeekNumbers []int // 1 to 53
 	ByMonths      []time.Month
 	ByYearDays    []int // 1 to 366
-	BySetPos      []int // 1 to 366
+	BySetPos      []int // -366 to 366
 
 	IB InvalidBehavior
 
@@ -799,6 +799,8 @@ type iterator struct {
 }
 
 func (i *iterator) Next() *time.Time {
+	//TODO: setpos
+
 	if len(i.queue) > 0 {
 		r := i.queue[0]
 		i.queue = i.queue[1:]
