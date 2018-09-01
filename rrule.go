@@ -228,8 +228,24 @@ func (rrule RRule) Iterator() Iterator {
 		return iter
 	}
 
+	if rrule.Frequency != Yearly && rrule.Frequency != Monthly {
+		for _, wd := range rrule.ByWeekdays {
+			if wd.N != 0 {
+				panic("BYDAY entries may only specify a numeric component when the frequency is YEARLY or MONTHLY")
+			}
+		}
+	}
+	if rrule.Frequency == Yearly && len(rrule.ByWeekNumbers) > 0 {
+		for _, wd := range rrule.ByWeekdays {
+			if wd.N != 0 {
+				panic("BYDAY entries must not specify a numeric component when the frequency is YEARLY and a BYWEEKNO rule is present")
+			}
+		}
+	}
+
 	// TODO: don't need a pre-caching iterator when all the BySetPos values
 	// are >= 0.
+	// TODO: COUNT and UNTIL need to be evaluated after BYSETPOS rules.
 	return &setposIterator{
 		validPos:   rrule.BySetPos,
 		underlying: iter,
@@ -539,6 +555,15 @@ func setYearly(rrule RRule) *iterator {
 		},
 
 		valid: func(t time.Time) bool {
+
+			// see note 2 on page 44 of RFC 5545, including erratum 3747.
+			if len(rrule.ByYearDays) > 0 || len(rrule.ByMonthDays) > 0 {
+				return checkLimiters(t,
+					validMonth(rrule.ByMonths),
+					validWeekday(rrule.ByWeekdays),
+				)
+			}
+
 			return checkLimiters(t,
 				validMonth(rrule.ByMonths),
 			)
@@ -548,12 +573,20 @@ func setYearly(rrule RRule) *iterator {
 			tt := expandBySeconds([]time.Time{t}, rrule.BySeconds...)
 			tt = expandByMinutes(tt, rrule.ByMinutes...)
 			tt = expandByHours(tt, rrule.ByHours...)
-			// TODO: note 2
-			// tt = expandByWeekdays(tt, rrule.weekStart(), rrule.ByWeekdays...)
+
 			tt = expandByMonthDays(tt, rrule.ByMonthDays...)
 			tt = expandByYearDays(tt, rrule.ByYearDays...)
 			tt = expandByWeekNumbers(tt, rrule.weekStart(), rrule.ByWeekNumbers...)
 			tt = expandByMonths(tt, rrule.IB, rrule.ByMonths...)
+
+			// see note 2 on page 44 of RFC 5545, including erratum 3779.
+			if len(rrule.ByYearDays) == 0 && len(rrule.ByMonthDays) == 0 {
+				if len(rrule.ByMonths) != 0 {
+					tt = expandMonthByWeekdays(tt, rrule.IB, rrule.ByWeekdays...)
+				} else {
+					tt = expandYearByWeekdays(tt, rrule.IB, rrule.ByWeekdays...)
+				}
+			}
 			return tt
 		},
 	}
@@ -656,6 +689,22 @@ func expandMonthByWeekdays(tt []time.Time, ib InvalidBehavior, weekdays ...Quali
 	return e
 }
 
+func expandYearByWeekdays(tt []time.Time, ib InvalidBehavior, weekdays ...QualifiedWeekday) []time.Time {
+	if len(weekdays) == 0 {
+		return tt
+	}
+
+	e := make([]time.Time, 0, len(tt))
+	for _, t := range tt {
+		for _, wd := range weekdays {
+			e = append(e, weekdaysInYear(t, wd, ib)...)
+		}
+	}
+
+	return e
+
+}
+
 type InvalidBehavior int
 
 const (
@@ -723,6 +772,74 @@ func weekdaysInMonth(t time.Time, wd QualifiedWeekday, ib InvalidBehavior) []tim
 
 	return []time.Time{allWDs[idx]}
 
+}
+
+func weekdaysInYear(t time.Time, wd QualifiedWeekday, ib InvalidBehavior) []time.Time {
+	allWDs := make([]time.Time, 0, 5)
+
+	// start on first of year
+	day := time.Date(t.Year(), 1, 1, t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location())
+
+	// scan til the first relevant weekday of the year
+	for day.Weekday() != wd.WD {
+		day = day.AddDate(0, 0, 1)
+	}
+
+	// scan over every week of the year
+	for {
+		allWDs = append(allWDs, day)
+		day = day.AddDate(0, 0, 7)
+		if day.Year() != t.Year() {
+			break
+		}
+	}
+
+	if wd.N == 0 {
+		// no index specified, return all.
+		return allWDs
+	}
+
+	if wd.N > 0 {
+		// positive index specified. count to the correct instance
+		if wd.N > len(allWDs) {
+			switch ib {
+			case OmitInvalid:
+				return nil
+			case PrevInvalid:
+				idx := len(allWDs) - 1
+				return allWDs[idx:idx]
+			case NextInvalid:
+				return []time.Time{allWDs[len(allWDs)-1].AddDate(0, 0, 7)}
+			}
+		}
+		return []time.Time{allWDs[wd.N-1]}
+	}
+
+	// negative index specified. count backwards to the correct instance
+
+	// an example of the following logic:
+	//
+	// -1 in a list of 4 ..
+	// 	- the index becomes 3, which is the last index
+	//	  which corresponds to "the last instance"
+	// -3 in a list of 4 ..
+	//	- the index becomes 1, which is the third from last
+	// -7 in a list of 4 ..
+	//	- the index becomes -3, which should trigger invalid behavior
+	idx := len(allWDs) + wd.N
+
+	if idx < 0 || idx > len(allWDs) {
+		switch ib {
+		case OmitInvalid:
+			return nil
+		case PrevInvalid:
+			return []time.Time{allWDs[0].AddDate(0, 0, -7)}
+		case NextInvalid:
+			return allWDs[0:0]
+		}
+	}
+
+	return []time.Time{allWDs[idx]}
 }
 
 func expandByMonthDays(tt []time.Time, monthdays ...int) []time.Time {
