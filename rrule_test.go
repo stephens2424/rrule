@@ -15,6 +15,9 @@ var cases = []struct {
 	RRule    RRule
 	Dates    []string
 	Terminal bool
+
+	NoBenchmark bool
+	NoTest      bool
 }{
 	{
 		Name: "simple secondly",
@@ -58,6 +61,30 @@ var cases = []struct {
 		Dates:    []string{"2018-08-25T09:08:07Z", "2018-08-26T09:08:07Z", "2018-08-27T09:08:07Z"},
 		Terminal: true,
 	},
+
+	{
+		Name: "daily setpos",
+		RRule: RRule{
+			Frequency: Daily,
+			Count:     10,
+			Dtstart:   now,
+			BySetPos:  []int{1, 3, -1},
+		},
+		Dates:    []string{"2018-08-26T09:08:07Z", "2018-08-28T09:08:07Z", "2018-09-03T09:08:07Z"},
+		Terminal: true,
+	},
+
+	{
+		Name: "daily until",
+		RRule: RRule{
+			Frequency: Daily,
+			Until:     time.Date(2018, 8, 30, 0, 0, 0, 0, time.UTC),
+			Dtstart:   now,
+		},
+		Dates:    []string{"2018-08-25T09:08:07Z", "2018-08-26T09:08:07Z", "2018-08-27T09:08:07Z", "2018-08-28T09:08:07Z", "2018-08-29T09:08:07Z"},
+		Terminal: true,
+	},
+
 	{
 		Name: "simple monthly",
 		RRule: RRule{
@@ -68,6 +95,18 @@ var cases = []struct {
 		Dates:    []string{"2018-08-25T09:08:07Z", "2018-09-25T09:08:07Z", "2018-10-25T09:08:07Z"},
 		Terminal: true,
 	},
+
+	{
+		Name: "long monthly",
+		RRule: RRule{
+			Frequency: Monthly,
+			Count:     300,
+			Dtstart:   now,
+		},
+		Terminal: true,
+		NoTest:   true,
+	},
+
 	{
 		Name: "monthly by weekday",
 		RRule: RRule{
@@ -106,6 +145,10 @@ var cases = []struct {
 
 func TestRRule(t *testing.T) {
 	for _, tc := range cases {
+		if tc.NoTest {
+			continue
+		}
+
 		t.Run(tc.Name, func(t *testing.T) {
 			dates := tc.RRule.All(0)
 			assert.Equal(t, tc.Dates, rfcAll(dates))

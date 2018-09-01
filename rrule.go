@@ -222,6 +222,21 @@ func (rrule RRule) All(limit int) []time.Time {
 }
 
 func (rrule RRule) Iterator() Iterator {
+	iter := rrule.noSetposIterator()
+
+	if len(rrule.BySetPos) == 0 {
+		return iter
+	}
+
+	// TODO: don't need a pre-caching iterator when all the BySetPos values
+	// are >= 0.
+	return &setposIterator{
+		validPos:   rrule.BySetPos,
+		underlying: iter,
+	}
+}
+
+func (rrule RRule) noSetposIterator() Iterator {
 	switch rrule.Frequency {
 	case Secondly:
 		return setSecondly(rrule)
@@ -257,6 +272,7 @@ func setSecondly(rrule RRule) *iterator {
 
 	return &iterator{
 		minTime:  start,
+		maxTime:  rrule.Until,
 		queueCap: rrule.Count,
 		next: func() *time.Time {
 			ret := current // copy current
@@ -298,6 +314,7 @@ func setMinutely(rrule RRule) *iterator {
 
 	return &iterator{
 		minTime:  start,
+		maxTime:  rrule.Until,
 		queueCap: rrule.Count,
 		next: func() *time.Time {
 			ret := current // copy current
@@ -339,6 +356,7 @@ func setHourly(rrule RRule) *iterator {
 
 	return &iterator{
 		minTime:  start,
+		maxTime:  rrule.Until,
 		queueCap: rrule.Count,
 		next: func() *time.Time {
 			ret := current // copy current
@@ -381,6 +399,7 @@ func setMonthly(rrule RRule) *iterator {
 
 	return &iterator{
 		minTime:  start,
+		maxTime:  rrule.Until,
 		queueCap: rrule.Count,
 		next: func() *time.Time {
 			ret := current // copy current
@@ -432,6 +451,7 @@ func setDaily(rrule RRule) *iterator {
 
 	return &iterator{
 		minTime:  start,
+		maxTime:  rrule.Until,
 		queueCap: rrule.Count,
 		next: func() *time.Time {
 			ret := current // copy current
@@ -471,6 +491,7 @@ func setWeekly(rrule RRule) *iterator {
 
 	return &iterator{
 		minTime:  start,
+		maxTime:  rrule.Until,
 		queueCap: rrule.Count,
 		next: func() *time.Time {
 			ret := current // copy current
@@ -509,6 +530,7 @@ func setYearly(rrule RRule) *iterator {
 
 	return &iterator{
 		minTime:  start,
+		maxTime:  rrule.Until,
 		queueCap: rrule.Count,
 		next: func() *time.Time {
 			ret := current // copy current
@@ -526,6 +548,7 @@ func setYearly(rrule RRule) *iterator {
 			tt := expandBySeconds([]time.Time{t}, rrule.BySeconds...)
 			tt = expandByMinutes(tt, rrule.ByMinutes...)
 			tt = expandByHours(tt, rrule.ByHours...)
+			// TODO: note 2
 			// tt = expandByWeekdays(tt, rrule.weekStart(), rrule.ByWeekdays...)
 			tt = expandByMonthDays(tt, rrule.ByMonthDays...)
 			tt = expandByYearDays(tt, rrule.ByYearDays...)
@@ -786,6 +809,8 @@ type iterator struct {
 	totalQueued uint64
 	queueCap    uint64
 	minTime     time.Time
+	maxTime     time.Time
+	pastMaxTime bool
 
 	// next finds the next key time.
 	next func() *time.Time
@@ -799,19 +824,23 @@ type iterator struct {
 }
 
 func (i *iterator) Next() *time.Time {
-	//TODO: setpos
-
 	if len(i.queue) > 0 {
 		r := i.queue[0]
 		i.queue = i.queue[1:]
 		return &r
 	}
 
-	if i.totalQueued >= i.queueCap {
-		return nil
+	if i.queueCap > 0 {
+		if i.totalQueued >= i.queueCap {
+			return nil
+		}
 	}
 
 	for {
+		if i.pastMaxTime {
+			return nil
+		}
+
 		key := i.next()
 		if key == nil {
 			return nil
@@ -828,13 +857,26 @@ func (i *iterator) Next() *time.Time {
 			variations = variations[1:]
 		}
 
+		// remove any variations after the max time
+		if !i.maxTime.IsZero() {
+			for idx, v := range variations {
+				if v.After(i.maxTime) {
+					variations = variations[:idx]
+					i.pastMaxTime = true
+					break
+				}
+			}
+		}
+
 		// if we're left with nothing (or started there) skip this key time
 		if len(variations) == 0 {
 			continue
 		}
 
-		if i.totalQueued+uint64(len(variations)) > i.queueCap {
-			variations = variations[:i.queueCap-i.totalQueued]
+		if i.queueCap > 0 {
+			if i.totalQueued+uint64(len(variations)) > i.queueCap {
+				variations = variations[:i.queueCap-i.totalQueued]
+			}
 		}
 
 		i.totalQueued += uint64(len(variations))
