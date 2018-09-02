@@ -1,7 +1,9 @@
 package rrule
 
 import (
+	"errors"
 	"fmt"
+	"sort"
 	"time"
 )
 
@@ -180,6 +182,44 @@ func validYearDay(yeardays []int) validFunc {
 	}
 }
 
+func limitBySetPos(tt []time.Time, setpos []int) []time.Time {
+	if len(setpos) == 0 {
+		return tt
+	}
+
+	sort.Slice(tt, func(i, j int) bool {
+		return tt[i].Before(tt[j])
+	})
+
+	include := map[int]bool{}
+
+	for _, sp := range setpos {
+		if sp < 0 {
+			sp = len(tt) + sp
+		} else {
+			sp-- // setpos is 1-indexed in the rrule. adjust here
+		}
+
+		include[sp] = true
+	}
+
+	var includedList []int
+	for included := range include {
+		includedList = append(includedList, included)
+	}
+
+	sort.Ints(includedList)
+
+	var ret []time.Time
+	for _, included := range includedList {
+		if len(tt) > included {
+			ret = append(ret, tt[included])
+		}
+	}
+
+	return ret
+}
+
 func checkLimiters(t time.Time, ll ...validFunc) bool {
 	for _, l := range ll {
 		if !l(&t) {
@@ -221,38 +261,54 @@ func (rrule RRule) All(limit int) []time.Time {
 	return all
 }
 
-func (rrule RRule) Iterator() Iterator {
-	iter := rrule.noSetposIterator()
-
-	if len(rrule.BySetPos) == 0 {
-		return iter
-	}
-
+func (rrule RRule) Validate() error {
 	if rrule.Frequency != Yearly && rrule.Frequency != Monthly {
 		for _, wd := range rrule.ByWeekdays {
 			if wd.N != 0 {
-				panic("BYDAY entries may only specify a numeric component when the frequency is YEARLY or MONTHLY")
+				return errors.New("BYDAY entries may only specify a numeric component when the frequency is YEARLY or MONTHLY")
 			}
 		}
 	}
 	if rrule.Frequency == Yearly && len(rrule.ByWeekNumbers) > 0 {
 		for _, wd := range rrule.ByWeekdays {
 			if wd.N != 0 {
-				panic("BYDAY entries must not specify a numeric component when the frequency is YEARLY and a BYWEEKNO rule is present")
+				return errors.New("BYDAY entries must not specify a numeric component when the frequency is YEARLY and a BYWEEKNO rule is present")
 			}
 		}
 	}
 
-	// TODO: don't need a pre-caching iterator when all the BySetPos values
-	// are >= 0.
-	// TODO: COUNT and UNTIL need to be evaluated after BYSETPOS rules.
-	return &setposIterator{
-		validPos:   rrule.BySetPos,
-		underlying: iter,
+	if len(rrule.BySetPos) != 0 {
+		if len(rrule.BySeconds) == 0 &&
+			len(rrule.ByMinutes) == 0 &&
+			len(rrule.ByHours) == 0 &&
+			len(rrule.ByWeekdays) == 0 &&
+			len(rrule.ByMonthDays) == 0 &&
+			len(rrule.ByWeekNumbers) == 0 &&
+			len(rrule.ByMonths) == 0 &&
+			len(rrule.ByYearDays) == 0 {
+			return errors.New("BYSETPOS rules must be used in conjunction with at least one other BYXXX rule part")
+		}
 	}
+
+	if rrule.Count != 0 && !rrule.Until.IsZero() {
+		return errors.New("COUNT and UNTIL must not appear in the same RRULE")
+	}
+
+	for _, sp := range rrule.BySetPos {
+		if sp == 0 || sp < -366 || sp > 366 {
+			return errors.New("BYSETPOS values must be between [-366,-1] or [1,366].")
+		}
+	}
+
+	return nil
 }
 
-func (rrule RRule) noSetposIterator() Iterator {
+func (rrule RRule) Iterator() Iterator {
+	err := rrule.Validate()
+	if err != nil {
+		panic(err)
+	}
+
 	switch rrule.Frequency {
 	case Secondly:
 		return setSecondly(rrule)
@@ -290,6 +346,7 @@ func setSecondly(rrule RRule) *iterator {
 		minTime:  start,
 		maxTime:  rrule.Until,
 		queueCap: rrule.Count,
+		setpos:   rrule.BySetPos,
 		next: func() *time.Time {
 			ret := current // copy current
 			current = current.Add(time.Duration(interval) * time.Second)
@@ -331,6 +388,7 @@ func setMinutely(rrule RRule) *iterator {
 	return &iterator{
 		minTime:  start,
 		maxTime:  rrule.Until,
+		setpos:   rrule.BySetPos,
 		queueCap: rrule.Count,
 		next: func() *time.Time {
 			ret := current // copy current
@@ -373,6 +431,7 @@ func setHourly(rrule RRule) *iterator {
 	return &iterator{
 		minTime:  start,
 		maxTime:  rrule.Until,
+		setpos:   rrule.BySetPos,
 		queueCap: rrule.Count,
 		next: func() *time.Time {
 			ret := current // copy current
@@ -416,6 +475,7 @@ func setMonthly(rrule RRule) *iterator {
 	return &iterator{
 		minTime:  start,
 		maxTime:  rrule.Until,
+		setpos:   rrule.BySetPos,
 		queueCap: rrule.Count,
 		next: func() *time.Time {
 			ret := current // copy current
@@ -468,6 +528,7 @@ func setDaily(rrule RRule) *iterator {
 	return &iterator{
 		minTime:  start,
 		maxTime:  rrule.Until,
+		setpos:   rrule.BySetPos,
 		queueCap: rrule.Count,
 		next: func() *time.Time {
 			ret := current // copy current
@@ -508,6 +569,7 @@ func setWeekly(rrule RRule) *iterator {
 	return &iterator{
 		minTime:  start,
 		maxTime:  rrule.Until,
+		setpos:   rrule.BySetPos,
 		queueCap: rrule.Count,
 		next: func() *time.Time {
 			ret := current // copy current
@@ -547,6 +609,7 @@ func setYearly(rrule RRule) *iterator {
 	return &iterator{
 		minTime:  start,
 		maxTime:  rrule.Until,
+		setpos:   rrule.BySetPos,
 		queueCap: rrule.Count,
 		next: func() *time.Time {
 			ret := current // copy current
@@ -681,9 +744,7 @@ func expandMonthByWeekdays(tt []time.Time, ib InvalidBehavior, weekdays ...Quali
 
 	e := make([]time.Time, 0, len(tt))
 	for _, t := range tt {
-		for _, wd := range weekdays {
-			e = append(e, weekdaysInMonth(t, wd, ib)...)
-		}
+		e = append(e, weekdaysInMonth(t, weekdays, ib)...)
 	}
 
 	return e
@@ -712,67 +773,6 @@ const (
 	NextInvalid
 	PrevInvalid
 )
-
-func weekdaysInMonth(t time.Time, wd QualifiedWeekday, ib InvalidBehavior) []time.Time {
-	allWDs := make([]time.Time, 0, 5)
-
-	day := time.Date(t.Year(), t.Month(), 1, t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location())
-	for day.Weekday() != wd.WD {
-		day = day.AddDate(0, 0, 1)
-	}
-
-	for {
-		allWDs = append(allWDs, day)
-		day = day.AddDate(0, 0, 7)
-		if day.Month() != t.Month() {
-			break
-		}
-	}
-
-	if wd.N == 0 {
-		return allWDs
-	}
-
-	if wd.N > 0 {
-		if wd.N > len(allWDs) {
-			switch ib {
-			case OmitInvalid:
-				return nil
-			case PrevInvalid:
-				idx := len(allWDs) - 1
-				return allWDs[idx:idx]
-			case NextInvalid:
-				return []time.Time{allWDs[len(allWDs)-1].AddDate(0, 0, 7)}
-			}
-		}
-		return []time.Time{allWDs[wd.N-1]}
-	}
-
-	// an example of the following logic:
-	//
-	// -1 in a list of 4 ..
-	// 	- the index becomes 3, which is the last index
-	//	  which corresponds to "the last instance"
-	// -3 in a list of 4 ..
-	//	- the index becomes 1, which is the third from last
-	// -7 in a list of 4 ..
-	//	- the index becomes -3, which should trigger invalid behavior
-	idx := len(allWDs) + wd.N
-
-	if idx < 0 || idx > len(allWDs) {
-		switch ib {
-		case OmitInvalid:
-			return nil
-		case PrevInvalid:
-			return []time.Time{allWDs[0].AddDate(0, 0, -7)}
-		case NextInvalid:
-			return allWDs[0:0]
-		}
-	}
-
-	return []time.Time{allWDs[idx]}
-
-}
 
 func weekdaysInYear(t time.Time, wd QualifiedWeekday, ib InvalidBehavior) []time.Time {
 	allWDs := make([]time.Time, 0, 5)
@@ -938,6 +938,8 @@ type iterator struct {
 
 	// valid determines if a particular key time is a valid recurrence.
 	valid func(t time.Time) bool
+
+	setpos []int
 }
 
 func (i *iterator) Next() *time.Time {
@@ -968,6 +970,8 @@ func (i *iterator) Next() *time.Time {
 		}
 
 		variations := i.variations(*key)
+
+		variations = limitBySetPos(variations, i.setpos)
 
 		// remove any variations before the min time
 		for len(variations) > 0 && variations[0].Before(i.minTime) {

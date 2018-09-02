@@ -65,12 +65,14 @@ var cases = []struct {
 	{
 		Name: "daily setpos",
 		RRule: RRule{
-			Frequency: Daily,
-			Count:     10,
-			Dtstart:   now,
-			BySetPos:  []int{1, 3, -1},
+			Frequency:  Monthly,
+			ByWeekdays: []QualifiedWeekday{{N: 0, WD: time.Monday}, {N: 0, WD: time.Tuesday}, {N: 0, WD: time.Wednesday}, {N: 0, WD: time.Thursday}, {N: 0, WD: time.Friday}, {N: 0, WD: time.Saturday}, {N: 0, WD: time.Sunday}},
+			Count:      4,
+			Dtstart:    now,
+			ByMonths:   []time.Month{time.August, time.September},
+			BySetPos:   []int{1, 3, -1},
 		},
-		Dates:    []string{"2018-08-26T09:08:07Z", "2018-08-28T09:08:07Z", "2018-09-03T09:08:07Z"},
+		Dates:    []string{"2018-08-31T09:08:07Z", "2018-09-01T09:08:07Z", "2018-09-03T09:08:07Z", "2018-09-30T09:08:07Z"},
 		Terminal: true,
 	},
 
