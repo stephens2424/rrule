@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	rrule "github.com/teambition/rrule-go"
 )
 
@@ -12,12 +13,14 @@ var now = time.Date(2018, 8, 25, 9, 8, 7, 6, time.UTC)
 
 var cases = []struct {
 	Name     string
+	String   string
 	RRule    RRule
 	Dates    []string
 	Terminal bool
 
-	NoBenchmark bool
-	NoTest      bool
+	NoBenchmark            bool
+	NoTest                 bool
+	NoTeambitionComparison bool
 }{
 	{
 		Name: "simple secondly",
@@ -225,6 +228,23 @@ var cases = []struct {
 		Dates:    []string{"2018-08-28T09:08:07Z", "2018-09-04T09:08:07Z", "2018-09-11T09:08:07Z"},
 		Terminal: true,
 	},
+
+	{
+		Name:   "yearly by weekday",
+		String: "FREQ=YEARLY;COUNT=3;BYDAY=TU,+35WE,-17MO",
+		RRule: RRule{
+			Frequency:  Yearly,
+			Count:      4,
+			Dtstart:    now,
+			ByWeekdays: []QualifiedWeekday{{WD: time.Tuesday}, {N: 35, WD: time.Wednesday}, {N: -17, WD: time.Monday}},
+		},
+		Dates:    []string{"2018-08-28T09:08:07Z", "2018-08-29T09:08:07Z", "2018-09-04T09:08:07Z", "2018-09-10T09:08:07Z"},
+		Terminal: true,
+
+		// I'm not sure if I'm reading the spec wrong or if they have a bug, but they return no results.
+		// lib-recur agrees with my implementation.
+		NoTeambitionComparison: true,
+	},
 }
 
 func TestRRule(t *testing.T) {
@@ -247,10 +267,15 @@ func TestAgainstTeambition(t *testing.T) {
 		if tc.NoTest {
 			continue
 		}
+		if tc.NoTeambitionComparison {
+			continue
+		}
 
 		t.Run(tc.Name, func(t *testing.T) {
 			ro := rruleToROption(tc.RRule)
-			teambitionRRule, _ := rrule.NewRRule(ro)
+			teambitionRRule, err := rrule.NewRRule(ro)
+			require.NoError(t, err)
+
 			dates := teambitionRRule.All()
 			assert.Equal(t, tc.Dates, rfcAll(dates))
 			t.Log(ro.String())
@@ -338,6 +363,12 @@ func BenchmarkTeambition(b *testing.B) {
 	for _, tc := range cases {
 
 		ro := rruleToROption(tc.RRule)
+		if tc.NoBenchmark {
+			continue
+		}
+		if tc.NoTeambitionComparison {
+			continue
+		}
 
 		b.Run(tc.Name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {

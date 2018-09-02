@@ -1,6 +1,9 @@
 package rrule
 
-import "time"
+import (
+	"sort"
+	"time"
+)
 
 func expandBySeconds(tt []time.Time, seconds ...int) []time.Time {
 	if len(seconds) == 0 {
@@ -166,9 +169,14 @@ func expandYearByWeekdays(tt []time.Time, ib InvalidBehavior, weekdays ...Qualif
 	e := make([]time.Time, 0, len(tt))
 	for _, t := range tt {
 		for _, wd := range weekdays {
-			e = append(e, weekdaysInYear(t, wd, ib)...)
+			res := weekdaysInYear(t, wd, ib)
+			e = append(e, res...)
 		}
 	}
+
+	sort.Slice(e, func(i, j int) bool {
+		return e[i].Before(e[j])
+	})
 
 	return e
 
