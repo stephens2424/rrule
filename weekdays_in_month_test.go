@@ -55,7 +55,7 @@ func TestWeekdaysInMonth(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
-			out := weekdaysInMonth(tt.Time, tt.Weekdays, tt.IB)
+			out := weekdaysInMonth(tt.Time, tt.Weekdays, nil, tt.IB)
 			assert.Equal(t, tt.Expect, out)
 		})
 	}

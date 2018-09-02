@@ -1,7 +1,6 @@
 package rrule
 
 import (
-	"log"
 	"sort"
 	"time"
 )
@@ -13,13 +12,13 @@ import (
 // list, outweighs the concerns.
 //
 // weekdays must have at least one element
-func weekdaysInMonth(t time.Time, weekdays []QualifiedWeekday, ib InvalidBehavior) []time.Time {
+func weekdaysInMonth(t time.Time, weekdays []QualifiedWeekday, bySetPos []int, ib InvalidBehavior) []time.Time {
 	firstDay := firstOfMonth(t)
 	firstWeekday := firstDay.Weekday()
 	lastDay := lastOfMonth(t)
 	lastDate := lastDay.Day()
 
-	dates := make([]int, 0, len(weekdays))
+	dates := make([]int, 0, 30)
 	for _, weekday := range weekdays {
 		countOfWD := countWeekdaysInMonth(weekday.WD, lastDay)
 
@@ -44,7 +43,6 @@ func weekdaysInMonth(t time.Time, weekdays []QualifiedWeekday, ib InvalidBehavio
 		if weekday.N < 0 {
 			needWDBefore := lastDay.Day() + (7 * (weekday.N + 1))
 			date := needWDBefore - daysFrom(lastDay.Weekday(), weekday.WD)
-			log.Println(lastDay, weekday.N+1, needWDBefore, date)
 			if date > 0 {
 				dates = append(dates, date)
 			}
@@ -52,6 +50,7 @@ func weekdaysInMonth(t time.Time, weekdays []QualifiedWeekday, ib InvalidBehavio
 	}
 
 	sort.Ints(dates)
+	dates = limitInstancesBySetPos(dates, bySetPos)
 
 	out := make([]time.Time, len(dates))
 	for i, date := range dates {

@@ -187,10 +187,7 @@ func limitBySetPos(tt []time.Time, setpos []int) []time.Time {
 		return tt
 	}
 
-	sort.Slice(tt, func(i, j int) bool {
-		return tt[i].Before(tt[j])
-	})
-
+	// a map of tt indexes to include
 	include := map[int]bool{}
 
 	for _, sp := range setpos {
@@ -203,19 +200,46 @@ func limitBySetPos(tt []time.Time, setpos []int) []time.Time {
 		include[sp] = true
 	}
 
-	var includedList []int
+	ret := make([]time.Time, 0, len(include))
 	for included := range include {
-		includedList = append(includedList, included)
-	}
-
-	sort.Ints(includedList)
-
-	var ret []time.Time
-	for _, included := range includedList {
 		if len(tt) > included {
 			ret = append(ret, tt[included])
 		}
 	}
+
+	sort.Slice(ret, func(i, j int) bool {
+		return ret[i].Before(ret[j])
+	})
+
+	return ret
+}
+
+func limitInstancesBySetPos(tt []int, setpos []int) []int {
+	if len(setpos) == 0 {
+		return tt
+	}
+
+	// a map of tt indexes to include
+	include := make(map[int]bool, len(setpos))
+
+	for _, sp := range setpos {
+		if sp < 0 {
+			sp = len(tt) + sp
+		} else {
+			sp-- // setpos is 1-indexed in the rrule. adjust here
+		}
+
+		include[sp] = true
+	}
+
+	ret := make([]int, 0, len(include))
+	for included := range include {
+		if len(tt) > included {
+			ret = append(ret, tt[included])
+		}
+	}
+
+	sort.Ints(ret)
 
 	return ret
 }
@@ -505,7 +529,7 @@ func setMonthly(rrule RRule) *iterator {
 			if len(rrule.ByMonthDays) > 0 {
 				tt = expandByMonthDays(tt, rrule.ByMonthDays...)
 			} else if len(rrule.ByWeekdays) > 0 {
-				tt = expandMonthByWeekdays(tt, rrule.IB, rrule.ByWeekdays...)
+				tt = expandMonthByWeekdays(tt, rrule.IB, rrule.BySetPos, rrule.ByWeekdays...)
 			}
 			return tt
 		},
@@ -645,7 +669,7 @@ func setYearly(rrule RRule) *iterator {
 			// see note 2 on page 44 of RFC 5545, including erratum 3779.
 			if len(rrule.ByYearDays) == 0 && len(rrule.ByMonthDays) == 0 {
 				if len(rrule.ByMonths) != 0 {
-					tt = expandMonthByWeekdays(tt, rrule.IB, rrule.ByWeekdays...)
+					tt = expandMonthByWeekdays(tt, rrule.IB, rrule.BySetPos, rrule.ByWeekdays...)
 				} else {
 					tt = expandYearByWeekdays(tt, rrule.IB, rrule.ByWeekdays...)
 				}
@@ -737,14 +761,14 @@ func forwardToWeekday(t time.Time, day time.Weekday) time.Time {
 	return t
 }
 
-func expandMonthByWeekdays(tt []time.Time, ib InvalidBehavior, weekdays ...QualifiedWeekday) []time.Time {
+func expandMonthByWeekdays(tt []time.Time, ib InvalidBehavior, bySetPos []int, weekdays ...QualifiedWeekday) []time.Time {
 	if len(weekdays) == 0 {
 		return tt
 	}
 
 	e := make([]time.Time, 0, len(tt))
 	for _, t := range tt {
-		e = append(e, weekdaysInMonth(t, weekdays, ib)...)
+		e = append(e, weekdaysInMonth(t, weekdays, bySetPos, ib)...)
 	}
 
 	return e
@@ -970,8 +994,6 @@ func (i *iterator) Next() *time.Time {
 		}
 
 		variations := i.variations(*key)
-
-		variations = limitBySetPos(variations, i.setpos)
 
 		// remove any variations before the min time
 		for len(variations) > 0 && variations[0].Before(i.minTime) {
