@@ -63,7 +63,75 @@ var cases = []struct {
 	},
 
 	{
+		Name: "secondly setpos",
+		RRule: RRule{
+			Frequency: Secondly,
+			Count:     4,
+			Dtstart:   now,
+			BySeconds: []int{1, 2, 3},
+			ByMonths:  []time.Month{time.August, time.September},
+			BySetPos:  []int{1, 3, -1},
+		},
+		Dates:    []string{"2018-08-25T09:09:01Z", "2018-08-25T09:09:02Z", "2018-08-25T09:09:03Z", "2018-08-25T09:10:01Z"},
+		Terminal: true,
+	},
+	{
+		Name: "minutely setpos",
+		RRule: RRule{
+			Frequency: Minutely,
+			Count:     4,
+			Dtstart:   now,
+			BySeconds: []int{1, 2, 3},
+			ByMonths:  []time.Month{time.August, time.September},
+			BySetPos:  []int{1, 3, -1},
+		},
+		Dates:    []string{"2018-08-25T09:09:01Z", "2018-08-25T09:09:03Z", "2018-08-25T09:10:01Z", "2018-08-25T09:10:03Z"},
+		Terminal: true,
+	},
+
+	{
+		Name: "hourly setpos",
+		RRule: RRule{
+			Frequency: Hourly,
+			Count:     4,
+			Dtstart:   now,
+			ByMinutes: []int{1, 2, 3},
+			ByMonths:  []time.Month{time.August, time.September},
+			BySetPos:  []int{1, 3, -1},
+		},
+		Dates:    []string{"2018-08-25T10:01:07Z", "2018-08-25T10:03:07Z", "2018-08-25T11:01:07Z", "2018-08-25T11:03:07Z"},
+		Terminal: true,
+	},
+
+	{
 		Name: "daily setpos",
+		RRule: RRule{
+			Frequency: Daily,
+			Count:     4,
+			Dtstart:   now,
+			ByHours:   []int{1, 2, 3},
+			ByMonths:  []time.Month{time.August, time.September},
+			BySetPos:  []int{1, 3, -1},
+		},
+		Dates:    []string{"2018-08-26T01:08:07Z", "2018-08-26T03:08:07Z", "2018-08-27T01:08:07Z", "2018-08-27T03:08:07Z"},
+		Terminal: true,
+	},
+	{
+		Name: "weekly setpos",
+		RRule: RRule{
+			Frequency: Weekly,
+			Count:     4,
+			Dtstart:   now,
+			ByHours:   []int{1, 2, 3},
+			ByMonths:  []time.Month{time.August, time.September},
+			BySetPos:  []int{1, 3, -1},
+		},
+		Dates:    []string{"2018-09-01T01:08:07Z", "2018-09-01T03:08:07Z", "2018-09-08T01:08:07Z", "2018-09-08T03:08:07Z"},
+		Terminal: true,
+	},
+
+	{
+		Name: "monthly setpos",
 		RRule: RRule{
 			Frequency:  Monthly,
 			ByWeekdays: []QualifiedWeekday{{N: 0, WD: time.Monday}, {N: 0, WD: time.Tuesday}, {N: 0, WD: time.Wednesday}, {N: 0, WD: time.Thursday}, {N: 0, WD: time.Friday}, {N: 0, WD: time.Saturday}, {N: 0, WD: time.Sunday}},
@@ -73,6 +141,20 @@ var cases = []struct {
 			BySetPos:   []int{1, 3, -1},
 		},
 		Dates:    []string{"2018-08-31T09:08:07Z", "2018-09-01T09:08:07Z", "2018-09-03T09:08:07Z", "2018-09-30T09:08:07Z"},
+		Terminal: true,
+	},
+
+	{
+		Name: "yearly setpos",
+		RRule: RRule{
+			Frequency:  Yearly,
+			ByWeekdays: []QualifiedWeekday{{N: 0, WD: time.Monday}, {N: 0, WD: time.Tuesday}, {N: 0, WD: time.Wednesday}, {N: 0, WD: time.Thursday}, {N: 0, WD: time.Friday}, {N: 0, WD: time.Saturday}, {N: 0, WD: time.Sunday}},
+			Count:      4,
+			Dtstart:    now,
+			ByMonths:   []time.Month{time.August, time.September},
+			BySetPos:   []int{1, 3, -1},
+		},
+		Dates:    []string{"2018-09-30T09:08:07Z", "2019-08-01T09:08:07Z", "2019-08-03T09:08:07Z", "2019-09-30T09:08:07Z"},
 		Terminal: true,
 	},
 
@@ -158,8 +240,30 @@ func TestRRule(t *testing.T) {
 	}
 }
 
+// TestAgainstTeambition checks that our test case expectations match against
+// an existing RRULE library.
+func TestAgainstTeambition(t *testing.T) {
+	for _, tc := range cases {
+		if tc.NoTest {
+			continue
+		}
+
+		t.Run(tc.Name, func(t *testing.T) {
+			ro := rruleToROption(tc.RRule)
+			teambitionRRule, _ := rrule.NewRRule(ro)
+			dates := teambitionRRule.All()
+			assert.Equal(t, tc.Dates, rfcAll(dates))
+			t.Log(ro.String())
+		})
+	}
+}
+
 func BenchmarkRRule(b *testing.B) {
 	for _, tc := range cases {
+		if tc.NoBenchmark {
+			continue
+		}
+
 		b.Run(tc.Name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				tc.RRule.All(0)
@@ -211,19 +315,19 @@ func rruleToROption(r RRule) rrule.ROption {
 	for _, wd := range r.ByWeekdays {
 		switch wd.WD {
 		case time.Sunday:
-			converted.Byweekday = append(converted.Byweekday, rrule.SU)
+			converted.Byweekday = append(converted.Byweekday, rrule.SU.Nth(wd.N))
 		case time.Monday:
-			converted.Byweekday = append(converted.Byweekday, rrule.MO)
+			converted.Byweekday = append(converted.Byweekday, rrule.MO.Nth(wd.N))
 		case time.Tuesday:
-			converted.Byweekday = append(converted.Byweekday, rrule.TU)
+			converted.Byweekday = append(converted.Byweekday, rrule.TU.Nth(wd.N))
 		case time.Wednesday:
-			converted.Byweekday = append(converted.Byweekday, rrule.WE)
+			converted.Byweekday = append(converted.Byweekday, rrule.WE.Nth(wd.N))
 		case time.Thursday:
-			converted.Byweekday = append(converted.Byweekday, rrule.TH)
+			converted.Byweekday = append(converted.Byweekday, rrule.TH.Nth(wd.N))
 		case time.Friday:
-			converted.Byweekday = append(converted.Byweekday, rrule.FR)
+			converted.Byweekday = append(converted.Byweekday, rrule.FR.Nth(wd.N))
 		case time.Saturday:
-			converted.Byweekday = append(converted.Byweekday, rrule.SA)
+			converted.Byweekday = append(converted.Byweekday, rrule.SA.Nth(wd.N))
 		}
 	}
 

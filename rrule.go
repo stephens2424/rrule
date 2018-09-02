@@ -44,11 +44,11 @@ func alwaysValid(t *time.Time) bool {
 }
 
 func validSecond(seconds []int) validFunc {
-	m := intmap(seconds)
-
 	if len(seconds) == 0 {
 		return alwaysValid
 	}
+
+	m := intmap(seconds)
 
 	return func(t *time.Time) bool {
 		if t == nil {
@@ -83,11 +83,12 @@ func monthmap(months []time.Month) map[time.Month]bool {
 }
 
 func validMinute(minutes []int) validFunc {
-	m := intmap(minutes)
-
 	if len(minutes) == 0 {
 		return alwaysValid
 	}
+
+	m := intmap(minutes)
+
 	return func(t *time.Time) bool {
 		if t == nil {
 			return false
@@ -97,11 +98,12 @@ func validMinute(minutes []int) validFunc {
 }
 
 func validHour(hours []int) validFunc {
-	m := intmap(hours)
-
 	if len(hours) == 0 {
 		return alwaysValid
 	}
+
+	m := intmap(hours)
+
 	return func(t *time.Time) bool {
 		if t == nil {
 			return false
@@ -112,11 +114,11 @@ func validHour(hours []int) validFunc {
 
 // validWeekday ignores the N modifier of QualifiedWeekday
 func validWeekday(weekdays []QualifiedWeekday) validFunc {
-	m := weekdaymap(weekdays)
-
 	if len(weekdays) == 0 {
 		return alwaysValid
 	}
+
+	m := weekdaymap(weekdays)
 
 	return func(t *time.Time) bool {
 		if t == nil {
@@ -127,11 +129,12 @@ func validWeekday(weekdays []QualifiedWeekday) validFunc {
 }
 
 func validMonthDay(monthdays []int) validFunc {
-	m := intmap(monthdays)
-
 	if len(monthdays) == 0 {
 		return alwaysValid
 	}
+
+	m := intmap(monthdays)
+
 	return func(t *time.Time) bool {
 		if t == nil {
 			return false
@@ -141,11 +144,12 @@ func validMonthDay(monthdays []int) validFunc {
 }
 
 func validWeek(weeks []int) validFunc {
-	m := intmap(weeks)
-
 	if len(weeks) == 0 {
 		return alwaysValid
 	}
+
+	m := intmap(weeks)
+
 	return func(t *time.Time) bool {
 		if t == nil {
 			return false
@@ -155,11 +159,12 @@ func validWeek(weeks []int) validFunc {
 }
 
 func validMonth(months []time.Month) validFunc {
-	m := monthmap(months)
-
 	if len(months) == 0 {
 		return alwaysValid
 	}
+
+	m := monthmap(months)
+
 	return func(t *time.Time) bool {
 		if t == nil {
 			return false
@@ -169,11 +174,12 @@ func validMonth(months []time.Month) validFunc {
 }
 
 func validYearDay(yeardays []int) validFunc {
-	m := intmap(yeardays)
-
 	if len(yeardays) == 0 {
 		return alwaysValid
 	}
+
+	m := intmap(yeardays)
+
 	return func(t *time.Time) bool {
 		if t == nil {
 			return false
@@ -244,9 +250,20 @@ func limitInstancesBySetPos(tt []int, setpos []int) []int {
 	return ret
 }
 
-func checkLimiters(t time.Time, ll ...validFunc) bool {
+func combineLimiters(ll ...validFunc) func(t *time.Time) bool {
+	return func(t *time.Time) bool {
+		for _, l := range ll {
+			if !l(t) {
+				return false
+			}
+		}
+		return true
+	}
+}
+
+func checkLimiters(t *time.Time, ll ...validFunc) bool {
 	for _, l := range ll {
-		if !l(&t) {
+		if !l(t) {
 			return false
 		}
 	}
@@ -377,21 +394,22 @@ func setSecondly(rrule RRule) *iterator {
 			return &ret
 		},
 
-		valid: func(t time.Time) bool {
-			return true
-			return checkLimiters(t,
-				validMonth(rrule.ByMonths),
-				validWeek(rrule.ByWeekNumbers),
-				validYearDay(rrule.ByYearDays),
-				validMonthDay(rrule.ByMonthDays),
-				validWeekday(rrule.ByWeekdays),
-				validHour(rrule.ByHours),
-				validMinute(rrule.ByMinutes),
-			)
-		},
+		valid: combineLimiters(
+			validSecond(rrule.BySeconds),
+			validMinute(rrule.ByMinutes),
+			validHour(rrule.ByHours),
+			validWeekday(rrule.ByWeekdays),
+			validMonthDay(rrule.ByMonthDays),
+			validMonth(rrule.ByMonths),
+			validWeek(rrule.ByWeekNumbers),
+			validYearDay(rrule.ByYearDays),
+		),
 
-		variations: func(t time.Time) []time.Time {
-			return []time.Time{t}
+		variations: func(t *time.Time) []time.Time {
+			if t == nil {
+				return nil
+			}
+			return []time.Time{*t}
 		},
 	}
 }
@@ -420,20 +438,22 @@ func setMinutely(rrule RRule) *iterator {
 			return &ret
 		},
 
-		valid: func(t time.Time) bool {
-			return checkLimiters(t,
-				validMonth(rrule.ByMonths),
-				validWeek(rrule.ByWeekNumbers),
-				validYearDay(rrule.ByYearDays),
-				validMonthDay(rrule.ByMonthDays),
-				validWeekday(rrule.ByWeekdays),
-				validHour(rrule.ByHours),
-				validMinute(rrule.ByMinutes),
-			)
-		},
+		valid: combineLimiters(
+			validMonth(rrule.ByMonths),
+			validWeek(rrule.ByWeekNumbers),
+			validYearDay(rrule.ByYearDays),
+			validMonthDay(rrule.ByMonthDays),
+			validWeekday(rrule.ByWeekdays),
+			validHour(rrule.ByHours),
+			validMinute(rrule.ByMinutes),
+		),
 
-		variations: func(t time.Time) []time.Time {
-			tt := expandBySeconds([]time.Time{t}, rrule.BySeconds...)
+		variations: func(t *time.Time) []time.Time {
+			if t == nil {
+				return nil
+			}
+			tt := expandBySeconds([]time.Time{*t}, rrule.BySeconds...)
+			tt = limitBySetPos(tt, rrule.BySetPos)
 			return tt
 		},
 	}
@@ -463,21 +483,22 @@ func setHourly(rrule RRule) *iterator {
 			return &ret
 		},
 
-		valid: func(t time.Time) bool {
-			return true
-			return checkLimiters(t,
-				validMonth(rrule.ByMonths),
-				validWeek(rrule.ByWeekNumbers),
-				validYearDay(rrule.ByYearDays),
-				validMonthDay(rrule.ByMonthDays),
-				validWeekday(rrule.ByWeekdays),
-				validHour(rrule.ByHours),
-			)
-		},
+		valid: combineLimiters(
+			validMonth(rrule.ByMonths),
+			validWeek(rrule.ByWeekNumbers),
+			validYearDay(rrule.ByYearDays),
+			validMonthDay(rrule.ByMonthDays),
+			validWeekday(rrule.ByWeekdays),
+			validHour(rrule.ByHours),
+		),
 
-		variations: func(t time.Time) []time.Time {
-			tt := expandByMinutes([]time.Time{t}, rrule.ByMinutes...)
+		variations: func(t *time.Time) []time.Time {
+			if t == nil {
+				return nil
+			}
+			tt := expandByMinutes([]time.Time{*t}, rrule.ByMinutes...)
 			tt = expandBySeconds(tt, rrule.BySeconds...)
+			tt = limitBySetPos(tt, rrule.BySetPos)
 			return tt
 		},
 	}
@@ -507,7 +528,10 @@ func setMonthly(rrule RRule) *iterator {
 			return &ret
 		},
 
-		valid: func(t time.Time) bool {
+		valid: func(t *time.Time) bool {
+			if t == nil {
+				return false
+			}
 			if len(rrule.ByMonthDays) > 0 {
 				return checkLimiters(t,
 					validMonth(rrule.ByMonths),
@@ -522,8 +546,11 @@ func setMonthly(rrule RRule) *iterator {
 			}
 		},
 
-		variations: func(t time.Time) []time.Time {
-			tt := expandBySeconds([]time.Time{t}, rrule.BySeconds...)
+		variations: func(t *time.Time) []time.Time {
+			if t == nil {
+				return nil
+			}
+			tt := expandBySeconds([]time.Time{*t}, rrule.BySeconds...)
 			tt = expandByMinutes(tt, rrule.ByMinutes...)
 			tt = expandByHours(tt, rrule.ByHours...)
 			if len(rrule.ByMonthDays) > 0 {
@@ -560,18 +587,20 @@ func setDaily(rrule RRule) *iterator {
 			return &ret
 		},
 
-		valid: func(t time.Time) bool {
-			return checkLimiters(t,
-				validMonth(rrule.ByMonths),
-				validMonthDay(rrule.ByMonthDays),
-				validWeekday(rrule.ByWeekdays),
-			)
-		},
+		valid: combineLimiters(
+			validMonth(rrule.ByMonths),
+			validMonthDay(rrule.ByMonthDays),
+			validWeekday(rrule.ByWeekdays),
+		),
 
-		variations: func(t time.Time) []time.Time {
-			tt := expandBySeconds([]time.Time{t}, rrule.BySeconds...)
+		variations: func(t *time.Time) []time.Time {
+			if t == nil {
+				return nil
+			}
+			tt := expandBySeconds([]time.Time{*t}, rrule.BySeconds...)
 			tt = expandByMinutes(tt, rrule.ByMinutes...)
 			tt = expandByHours(tt, rrule.ByHours...)
+			tt = limitBySetPos(tt, rrule.BySetPos)
 			return tt
 		},
 	}
@@ -601,16 +630,18 @@ func setWeekly(rrule RRule) *iterator {
 			return &ret
 		},
 
-		valid: func(t time.Time) bool {
-			return checkLimiters(t,
-				validMonth(rrule.ByMonths),
-			)
-		},
+		valid: combineLimiters(
+			validMonth(rrule.ByMonths),
+		),
 
-		variations: func(t time.Time) []time.Time {
-			tt := expandBySeconds([]time.Time{t}, rrule.BySeconds...)
+		variations: func(t *time.Time) []time.Time {
+			if t == nil {
+				return nil
+			}
+			tt := expandBySeconds([]time.Time{*t}, rrule.BySeconds...)
 			tt = expandByMinutes(tt, rrule.ByMinutes...)
 			tt = expandByHours(tt, rrule.ByHours...)
+			tt = limitBySetPos(tt, rrule.BySetPos)
 			tt = expandByWeekdays(tt, rrule.weekStart(), rrule.ByWeekdays...)
 			return tt
 		},
@@ -641,7 +672,10 @@ func setYearly(rrule RRule) *iterator {
 			return &ret
 		},
 
-		valid: func(t time.Time) bool {
+		valid: func(t *time.Time) bool {
+			if t == nil {
+				return false
+			}
 
 			// see note 2 on page 44 of RFC 5545, including erratum 3747.
 			if len(rrule.ByYearDays) > 0 || len(rrule.ByMonthDays) > 0 {
@@ -656,8 +690,12 @@ func setYearly(rrule RRule) *iterator {
 			)
 		},
 
-		variations: func(t time.Time) []time.Time {
-			tt := expandBySeconds([]time.Time{t}, rrule.BySeconds...)
+		variations: func(t *time.Time) []time.Time {
+			if t == nil {
+				return nil
+			}
+
+			tt := expandBySeconds([]time.Time{*t}, rrule.BySeconds...)
 			tt = expandByMinutes(tt, rrule.ByMinutes...)
 			tt = expandByHours(tt, rrule.ByHours...)
 
@@ -669,11 +707,13 @@ func setYearly(rrule RRule) *iterator {
 			// see note 2 on page 44 of RFC 5545, including erratum 3779.
 			if len(rrule.ByYearDays) == 0 && len(rrule.ByMonthDays) == 0 {
 				if len(rrule.ByMonths) != 0 {
-					tt = expandMonthByWeekdays(tt, rrule.IB, rrule.BySetPos, rrule.ByWeekdays...)
+					tt = expandMonthByWeekdays(tt, rrule.IB, nil, rrule.ByWeekdays...)
 				} else {
 					tt = expandYearByWeekdays(tt, rrule.IB, rrule.ByWeekdays...)
 				}
 			}
+
+			tt = limitBySetPos(tt, rrule.BySetPos)
 			return tt
 		},
 	}
@@ -684,67 +724,6 @@ func (rrule *RRule) weekStart() time.Weekday {
 		return time.Monday
 	}
 	return *rrule.WeekStart
-}
-
-func expandBySeconds(tt []time.Time, seconds ...int) []time.Time {
-	if len(seconds) == 0 {
-		return tt
-	}
-
-	e := make([]time.Time, 0, len(tt)*len(seconds))
-	for _, t := range tt {
-		for _, s := range seconds {
-			e = append(e, time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), s, t.Nanosecond(), t.Location()))
-		}
-	}
-
-	return e
-}
-
-func expandByMinutes(tt []time.Time, minutes ...int) []time.Time {
-	if len(minutes) == 0 {
-		return tt
-	}
-
-	e := make([]time.Time, 0, len(tt)*len(minutes))
-	for _, t := range tt {
-		for _, m := range minutes {
-			e = append(e, time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), m, t.Second(), t.Nanosecond(), t.Location()))
-		}
-	}
-
-	return e
-}
-
-func expandByHours(tt []time.Time, hours ...int) []time.Time {
-	if len(hours) == 0 {
-		return tt
-	}
-
-	e := make([]time.Time, 0, len(tt)*len(hours))
-	for _, t := range tt {
-		for _, h := range hours {
-			e = append(e, time.Date(t.Year(), t.Month(), t.Day(), h, t.Minute(), t.Second(), t.Nanosecond(), t.Location()))
-		}
-	}
-
-	return e
-}
-
-func expandByWeekdays(tt []time.Time, weekStart time.Weekday, weekdays ...QualifiedWeekday) []time.Time {
-	if len(weekdays) == 0 {
-		return tt
-	}
-
-	e := make([]time.Time, 0, len(tt)*len(weekdays))
-	for _, t := range tt {
-		t = backToWeekday(t, weekStart)
-		for _, wd := range weekdays {
-			e = append(e, forwardToWeekday(t, wd.WD))
-		}
-	}
-
-	return e
 }
 
 func backToWeekday(t time.Time, day time.Weekday) time.Time {
@@ -759,35 +738,6 @@ func forwardToWeekday(t time.Time, day time.Weekday) time.Time {
 		t = t.AddDate(0, 0, 1)
 	}
 	return t
-}
-
-func expandMonthByWeekdays(tt []time.Time, ib InvalidBehavior, bySetPos []int, weekdays ...QualifiedWeekday) []time.Time {
-	if len(weekdays) == 0 {
-		return tt
-	}
-
-	e := make([]time.Time, 0, len(tt))
-	for _, t := range tt {
-		e = append(e, weekdaysInMonth(t, weekdays, bySetPos, ib)...)
-	}
-
-	return e
-}
-
-func expandYearByWeekdays(tt []time.Time, ib InvalidBehavior, weekdays ...QualifiedWeekday) []time.Time {
-	if len(weekdays) == 0 {
-		return tt
-	}
-
-	e := make([]time.Time, 0, len(tt))
-	for _, t := range tt {
-		for _, wd := range weekdays {
-			e = append(e, weekdaysInYear(t, wd, ib)...)
-		}
-	}
-
-	return e
-
 }
 
 type InvalidBehavior int
@@ -866,85 +816,6 @@ func weekdaysInYear(t time.Time, wd QualifiedWeekday, ib InvalidBehavior) []time
 	return []time.Time{allWDs[idx]}
 }
 
-func expandByMonthDays(tt []time.Time, monthdays ...int) []time.Time {
-	if len(monthdays) == 0 {
-		return tt
-	}
-
-	e := make([]time.Time, 0, len(tt)*len(monthdays))
-	for _, t := range tt {
-		for _, md := range monthdays {
-			e = append(e, time.Date(t.Year(), t.Month(), md, t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location()))
-		}
-	}
-
-	return e
-}
-
-func expandByYearDays(tt []time.Time, yeardays ...int) []time.Time {
-	if len(yeardays) == 0 {
-		return tt
-	}
-
-	e := make([]time.Time, 0, len(tt)*len(yeardays))
-	for _, t := range tt {
-		yearStart := time.Date(t.Year(), time.January, 1, t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location())
-
-		for _, yd := range yeardays {
-			e = append(e, yearStart.AddDate(0, 0, yd))
-		}
-	}
-
-	return e
-}
-
-func expandByWeekNumbers(tt []time.Time, weekStarts time.Weekday, weekNumbers ...int) []time.Time {
-	if len(weekNumbers) == 0 {
-		return tt
-	}
-
-	e := make([]time.Time, 0, len(tt)*len(weekNumbers))
-	for _, t := range tt {
-		yearStart := time.Date(t.Year(), time.January, 1, t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location())
-		yearStart = forwardToWeekday(yearStart, t.Weekday())
-
-		for _, w := range weekNumbers {
-			e = append(e, yearStart.AddDate(0, 0, (w-1)*7))
-		}
-	}
-
-	return e
-}
-
-func expandByMonths(tt []time.Time, ib InvalidBehavior, months ...time.Month) []time.Time {
-	if len(months) == 0 {
-		return tt
-	}
-
-	e := make([]time.Time, 0, len(tt)*len(months))
-	for _, t := range tt {
-		for _, m := range months {
-			set := time.Date(t.Year(), m, t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location())
-			if set.Month() != m {
-				switch ib {
-				case PrevInvalid:
-					set = time.Date(t.Year(), t.Month()+1, -1, t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location())
-					e = append(e, set)
-				case NextInvalid:
-					set = time.Date(t.Year(), t.Month()+1, 1, t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location())
-					e = append(e, set)
-				case OmitInvalid:
-					// do nothing
-				}
-			} else {
-				e = append(e, set)
-			}
-		}
-	}
-
-	return e
-}
-
 type iterator struct {
 	queue       []time.Time
 	totalQueued uint64
@@ -958,10 +829,10 @@ type iterator struct {
 
 	// variations returns all the possible variations
 	// of the key time t
-	variations func(t time.Time) []time.Time
+	variations func(t *time.Time) []time.Time
 
 	// valid determines if a particular key time is a valid recurrence.
-	valid func(t time.Time) bool
+	valid func(t *time.Time) bool
 
 	setpos []int
 }
@@ -989,11 +860,11 @@ func (i *iterator) Next() *time.Time {
 			return nil
 		}
 
-		if !i.valid(*key) {
+		if !i.valid(key) {
 			continue
 		}
 
-		variations := i.variations(*key)
+		variations := i.variations(key)
 
 		// remove any variations before the min time
 		for len(variations) > 0 && variations[0].Before(i.minTime) {
