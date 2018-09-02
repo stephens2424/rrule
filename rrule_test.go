@@ -120,7 +120,8 @@ var cases = []struct {
 		Terminal: true,
 	},
 	{
-		Name: "weekly setpos",
+		Name:   "weekly setpos",
+		String: "FREQ=Weekly;COUNT=4;BYHOUR=1,2,3;BYMONTH=8,9;BYSETPOS=1,3,-1",
 		RRule: RRule{
 			Frequency: Weekly,
 			Count:     4,
@@ -218,7 +219,8 @@ var cases = []struct {
 	},
 
 	{
-		Name: "weekly by weekday",
+		Name:   "weekly by weekday",
+		String: "FREQ=WEEKLY;COUNT=3;BYDAY=TU",
 		RRule: RRule{
 			Frequency:  Weekly,
 			Count:      3,
@@ -231,7 +233,7 @@ var cases = []struct {
 
 	{
 		Name:   "yearly by weekday",
-		String: "FREQ=YEARLY;COUNT=3;BYDAY=TU,+35WE,-17MO",
+		String: "FREQ=YEARLY;COUNT=4;BYDAY=TU,+35WE,-17MO",
 		RRule: RRule{
 			Frequency:  Yearly,
 			Count:      4,
@@ -254,6 +256,15 @@ func TestRRule(t *testing.T) {
 		}
 
 		t.Run(tc.Name, func(t *testing.T) {
+			if tc.String != "" {
+				parsed, err := Parse(tc.String + ";DTSTART=" + now.Format(rfc5545))
+				require.NoError(t, err)
+				require.NotNil(t, parsed)
+
+				tc.RRule.Dtstart = tc.RRule.Dtstart.Truncate(time.Second) // truncate this because rrule only operates at second.
+				assert.Equal(t, tc.RRule, *parsed)
+			}
+
 			dates := tc.RRule.All(0)
 			assert.Equal(t, tc.Dates, rfcAll(dates))
 		})
