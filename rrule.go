@@ -272,6 +272,26 @@ func checkLimiters(t *time.Time, ll ...validFunc) bool {
 
 type Frequency int
 
+func (f Frequency) String() string {
+	switch f {
+	case Secondly:
+		return "SECONDLY"
+	case Minutely:
+		return "MINUTELY"
+	case Hourly:
+		return "HOURLY"
+	case Daily:
+		return "DAILY"
+	case Weekly:
+		return "WEEKLY"
+	case Monthly:
+		return "MONTHLY"
+	case Yearly:
+		return "YEARLY"
+	}
+	return ""
+}
+
 const (
 	Secondly Frequency = iota
 	Minutely
@@ -316,6 +336,10 @@ func (rrule RRule) Validate() error {
 				return errors.New("BYDAY entries must not specify a numeric component when the frequency is YEARLY and a BYWEEKNO rule is present")
 			}
 		}
+	}
+
+	if rrule.Frequency == Weekly && len(rrule.ByMonthDays) > 0 {
+		return errors.New("WEEKLY recurrences must not include BYMONTHDAY")
 	}
 
 	if len(rrule.BySetPos) != 0 {
@@ -535,13 +559,11 @@ func setMonthly(rrule RRule) *iterator {
 			if len(rrule.ByMonthDays) > 0 {
 				return checkLimiters(t,
 					validMonth(rrule.ByMonths),
-					validMonthDay(rrule.ByMonthDays),
 					validWeekday(rrule.ByWeekdays),
 				)
 			} else {
 				return checkLimiters(t,
 					validMonth(rrule.ByMonths),
-					validMonthDay(rrule.ByMonthDays),
 				)
 			}
 		},
@@ -907,4 +929,36 @@ type QualifiedWeekday struct {
 	// some greater duration. -3 would be "third from the last"
 	N  int
 	WD time.Weekday
+}
+
+func (wd QualifiedWeekday) String() string {
+	wdStr := WeekdayString(wd.WD)
+
+	if wd.N == 0 {
+		return wdStr
+	}
+
+	return fmt.Sprintf("%d%s", wd.N, wdStr)
+}
+
+// WeekdayString returns a weekday formatted as the two-letter string used in RFC5545.
+func WeekdayString(wd time.Weekday) string {
+	var wdStr string
+	switch wd {
+	case time.Sunday:
+		wdStr = "SU"
+	case time.Monday:
+		wdStr = "MO"
+	case time.Tuesday:
+		wdStr = "TU"
+	case time.Wednesday:
+		wdStr = "WE"
+	case time.Thursday:
+		wdStr = "TH"
+	case time.Friday:
+		wdStr = "FR"
+	case time.Saturday:
+		wdStr = "SA"
+	}
+	return wdStr
 }

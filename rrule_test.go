@@ -247,6 +247,18 @@ var cases = []struct {
 		// lib-recur agrees with my implementation.
 		NoTeambitionComparison: true,
 	},
+
+	{
+		Name: "monthly by monthday",
+		RRule: RRule{
+			Frequency:   Monthly,
+			Count:       3,
+			Dtstart:     now,
+			ByMonthDays: []int{10},
+		},
+		Dates:    []string{"2018-09-10T09:08:07Z", "2018-10-10T09:08:07Z", "2018-11-10T09:08:07Z"},
+		Terminal: true,
+	},
 }
 
 func TestRRule(t *testing.T) {
