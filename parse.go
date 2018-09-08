@@ -129,7 +129,11 @@ func Parse(str string) (*RRule, error) {
 			}
 			rrule.BySetPos = ints
 		case "WKST":
-			// TODO
+			wd, err := parseWeekday(value)
+			if err != nil {
+				return nil, err
+			}
+			rrule.WeekStart = &wd
 		default:
 			return nil, fmt.Errorf("%q is not a supported RRULE part", directive)
 		}
