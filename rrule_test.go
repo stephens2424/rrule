@@ -259,6 +259,30 @@ var cases = []struct {
 		Dates:    []string{"2018-09-10T09:08:07Z", "2018-10-10T09:08:07Z", "2018-11-10T09:08:07Z"},
 		Terminal: true,
 	},
+
+	{
+		Name: "daylight savings",
+		RRule: RRule{
+			Frequency: Daily,
+			Count:     3,
+			Dtstart:   time.Date(2018, time.November, 03, 01, 00, 00, 00, NewYork()),
+		},
+		Dates:    []string{"2018-11-03T01:00:00-04:00", "2018-11-04T01:00:00-04:00", "2018-11-05T01:00:00-05:00"},
+		Terminal: true,
+	},
+}
+
+func NewYork() *time.Location {
+	ny, err := time.LoadLocation("America/New_York")
+	if ny == nil {
+		errStr := "not found"
+		if err != nil {
+			errStr = err.Error()
+		}
+
+		panic("error loading IANA tzdata, which is required for daylight savings tests: " + errStr)
+	}
+	return ny
 }
 
 func TestRRule(t *testing.T) {
