@@ -12,8 +12,9 @@ func expandBySeconds(tt []time.Time, seconds ...int) []time.Time {
 
 	e := make([]time.Time, 0, len(tt)*len(seconds))
 	for _, t := range tt {
+		tmpl := t.Add(time.Duration(-1 * t.Second()))
 		for _, s := range seconds {
-			e = append(e, time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), s, t.Nanosecond(), t.Location()))
+			e = append(e, tmpl.Add((time.Duration(s) * time.Second)))
 		}
 	}
 
@@ -27,8 +28,9 @@ func expandByMinutes(tt []time.Time, minutes ...int) []time.Time {
 
 	e := make([]time.Time, 0, len(tt)*len(minutes))
 	for _, t := range tt {
+		tmpl := t.Add(time.Duration(-1 * t.Minute()))
 		for _, m := range minutes {
-			e = append(e, time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), m, t.Second(), t.Nanosecond(), t.Location()))
+			e = append(e, tmpl.Add(time.Duration(m)*time.Minute))
 		}
 	}
 
@@ -42,8 +44,9 @@ func expandByHours(tt []time.Time, hours ...int) []time.Time {
 
 	e := make([]time.Time, 0, len(tt)*len(hours))
 	for _, t := range tt {
+		tmpl := t.Add(time.Duration(-1 * t.Hour()))
 		for _, h := range hours {
-			e = append(e, time.Date(t.Year(), t.Month(), t.Day(), h, t.Minute(), t.Second(), t.Nanosecond(), t.Location()))
+			e = append(e, tmpl.Add(time.Duration(h)*time.Hour))
 		}
 	}
 
