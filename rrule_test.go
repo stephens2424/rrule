@@ -261,11 +261,23 @@ var cases = []struct {
 	},
 
 	{
-		Name: "daylight savings",
+		Name: "daily daylight savings",
 		RRule: RRule{
 			Frequency: Daily,
 			Count:     3,
 			Dtstart:   time.Date(2018, time.November, 03, 01, 00, 00, 00, NewYork()),
+		},
+		Dates:    []string{"2018-11-03T01:00:00-04:00", "2018-11-04T01:00:00-04:00", "2018-11-05T01:00:00-05:00"},
+		Terminal: true,
+	},
+
+	{
+		Name: "half-hourly daylight savings",
+		RRule: RRule{
+			Frequency: Hourly,
+			Count:     3,
+			Dtstart:   time.Date(2018, time.November, 03, 01, 00, 00, 00, NewYork()),
+			ByMinutes: []int{0, 30},
 		},
 		Dates:    []string{"2018-11-03T01:00:00-04:00", "2018-11-04T01:00:00-04:00", "2018-11-05T01:00:00-05:00"},
 		Terminal: true,
