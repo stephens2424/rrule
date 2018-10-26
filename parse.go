@@ -12,7 +12,7 @@ import (
 	"unicode/utf8"
 )
 
-const rfc5545 = "20060102T150405"
+const rfc5545 = "20060102T150405Z0700"
 
 func Parse(str string) (*RRule, error) {
 	scanner := bufio.NewScanner(bytes.NewBufferString(str))

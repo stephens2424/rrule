@@ -279,8 +279,9 @@ var cases = []struct {
 			Dtstart:   time.Date(2018, time.November, 04, 00, 30, 00, 00, NewYork()),
 			ByMinutes: []int{0, 30},
 		},
-		Dates:    []string{"2018-11-04T00:30:00-04:00", "2018-11-04T01:00:00-04:00", "2018-11-04T01:30:00-04:00", "2018-11-04T01:00:00-05:00", "2018-11-05T01:30:00-05:00", "2018-11-05T02:00:00-05:00"},
+		Dates:    []string{"2018-11-04T00:30:00-04:00", "2018-11-04T01:00:00-04:00", "2018-11-04T01:30:00-04:00", "2018-11-04T01:00:00-05:00", "2018-11-04T01:30:00-05:00", "2018-11-04T02:00:00-05:00"},
 		Terminal: true,
+		NoTeambitionComparison: true,
 	},
 }
 
@@ -305,7 +306,10 @@ func TestRRule(t *testing.T) {
 
 		t.Run(tc.Name, func(t *testing.T) {
 			if tc.String != "" {
-				parsed, err := Parse(tc.String + ";DTSTART=" + now.Format(rfc5545))
+				apply := tc.String + ";DTSTART=" + now.Format(rfc5545)
+				t.Log(apply)
+
+				parsed, err := Parse(apply)
 				require.NoError(t, err)
 				require.NotNil(t, parsed)
 
@@ -316,7 +320,6 @@ func TestRRule(t *testing.T) {
 
 				tc.RRule.Dtstart = dtstart.Truncate(time.Second) // restore dtstart, but truncate it because rrule only operates at second.
 				assert.Equal(t, tc.RRule, *parsed)
-
 			}
 
 			dates := tc.RRule.All(0)
