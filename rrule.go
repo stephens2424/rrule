@@ -407,16 +407,83 @@ func setSecondly(rrule RRule) *iterator {
 
 	current := start
 
+	nextFn := func() *time.Time {
+		ret := current // copy current
+		current = current.Add(time.Duration(interval) * time.Second)
+		return &ret
+	}
+
+	// An rrule with Interval of 1 and BySeconds will potentially cycle through
+	// many seconds that get skipped. This is a fairly expensive case, but can be
+	// short-circuited by skipping to each subsequent BySeconds point instead of
+	// each second.
+	if interval == 1 && len(rrule.BySeconds) > 0 {
+		seconds := []int{}
+		for _, s := range rrule.BySeconds {
+			if s < 0 {
+				s += 60
+			}
+			seconds = append(seconds, s)
+		}
+
+		sort.Ints(seconds)
+		initialSecond := start.Second()
+		loopIdx := 0
+		wentPastInitial := false
+		var firstDiff time.Duration
+
+		var secondsLooper []time.Duration
+		for i, s := range seconds {
+			if !wentPastInitial && s > initialSecond {
+				wentPastInitial = true
+				loopIdx = i
+				firstDiff = time.Duration(s-initialSecond) * time.Second
+			}
+
+			nextIdx := i + 1
+			if nextIdx == len(seconds) {
+				secondsLooper = append(secondsLooper, time.Duration(60+seconds[0]-seconds[i])*time.Second)
+			} else {
+				secondsLooper = append(secondsLooper, time.Duration(seconds[nextIdx]-seconds[i])*time.Second)
+			}
+		}
+
+		if !wentPastInitial {
+			// all the BySecond terms are lower numbers than the start time second, so we need to wrap around for the first diff
+			firstDiff = time.Duration(seconds[0]+60-initialSecond) * time.Second
+		}
+
+		secondsLooperFn := func() *time.Time {
+			ret := current // copy
+			current = current.Add(secondsLooper[loopIdx])
+			loopIdx++
+			if loopIdx >= len(secondsLooper) {
+				loopIdx = 0
+			}
+			return &ret
+		}
+
+		var afterFirst bool
+
+		// return an initial function that does the first initial
+		nextFn = func() *time.Time {
+			if afterFirst {
+				return secondsLooperFn()
+			}
+
+			ret := current // copy
+			current = current.Add(firstDiff)
+			afterFirst = true
+			return &ret
+		}
+	}
+
 	return &iterator{
 		minTime:  start,
 		maxTime:  rrule.Until,
 		queueCap: rrule.Count,
 		setpos:   rrule.BySetPos,
-		next: func() *time.Time {
-			ret := current // copy current
-			current = current.Add(time.Duration(interval) * time.Second)
-			return &ret
-		},
+		next:     nextFn,
 
 		valid: combineLimiters(
 			validSecond(rrule.BySeconds),
