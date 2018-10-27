@@ -12,7 +12,7 @@ func expandBySeconds(tt []time.Time, seconds ...int) []time.Time {
 
 	e := make([]time.Time, 0, len(tt)*len(seconds))
 	for _, t := range tt {
-		tmpl := t.Add(time.Duration(-1 * t.Second())* time.Second)
+		tmpl := t.Add(time.Duration(-1*t.Second()) * time.Second)
 		for _, s := range seconds {
 			if s < 0 {
 				s += 60
@@ -31,7 +31,7 @@ func expandByMinutes(tt []time.Time, minutes ...int) []time.Time {
 
 	e := make([]time.Time, 0, len(tt)*len(minutes))
 	for _, t := range tt {
-		tmpl := t.Add(time.Duration(-1 * t.Minute()) *time.Minute)
+		tmpl := t.Add(time.Duration(-1*t.Minute()) * time.Minute)
 		for _, m := range minutes {
 			if m < 0 {
 				m += 60
@@ -50,7 +50,7 @@ func expandByHours(tt []time.Time, hours ...int) []time.Time {
 
 	e := make([]time.Time, 0, len(tt)*len(hours))
 	for _, t := range tt {
-		tmpl := t.Add(time.Duration(-1 * t.Hour()) * time.Hour)
+		tmpl := t.Add(time.Duration(-1*t.Hour()) * time.Hour)
 		for _, h := range hours {
 			if h < 0 {
 				h += 24
