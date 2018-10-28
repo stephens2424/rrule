@@ -19,9 +19,6 @@ func (rrule RRule) Describe() string {
 		b.WriteString("s")
 	}
 
-	if !rrule.Dtstart.IsZero() {
-		fmt.Fprintf(b, ", starting %v", rrule.Dtstart.Format(time.UnixDate))
-	}
 	if rrule.Count != 0 {
 		plural := ""
 		if rrule.Count > 1 {

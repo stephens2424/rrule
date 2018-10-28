@@ -12,9 +12,78 @@ import (
 	"unicode/utf8"
 )
 
-const rfc5545 = "20060102T150405Z0700"
+// ParseRecurrence parses a whole recurrence from an iCalendar object. iCalendar
+// properties recognized are DTSTART, RRULE, EXRULE, RDATE, EXDATE. Others are
+// ignored.
+//
+// loc defines what "local" means to the parsed rules. Some patterns may
+// specify a "floating" time, one without a timezone or offset, which matches
+// a different actual time in different timezones. For example,
+//
+//	RRULE:FREQ=YEARLY;BYSECOND=-10
+//
+// might be useful to alert you to start counting down to the new year, no
+// matter your timezone. If nil, time.UTC will be used.
+func ParseRecurrence(src []byte, loc *time.Location) (*Recurrence, error) {
+	scanner := bufio.NewScanner(bytes.NewBuffer(src))
 
-func Parse(str string) (*RRule, error) {
+	recurrence := &Recurrence{}
+
+	for scanner.Scan() {
+		text := scanner.Text()
+		colonIdx := strings.IndexAny(text, ":;")
+
+		if colonIdx < 0 || len(text)-1 == colonIdx {
+			return nil, fmt.Errorf("misformatted line %q", text)
+		}
+
+		propName := text[:colonIdx]
+		propVal := text[colonIdx+1:]
+
+		switch propName {
+		case "DTSTART":
+			t, err := parseTime(text, loc)
+			if err != nil {
+				return nil, err
+			}
+			recurrence.Dtstart = t
+
+		case "RRULE":
+			rrule, err := ParseRRule(propVal)
+			if err != nil {
+				return nil, err
+			}
+			recurrence.RRules = append(recurrence.RRules, rrule)
+		case "EXRULE":
+			rrule, err := ParseRRule(propVal)
+			if err != nil {
+				return nil, err
+			}
+			recurrence.ExRules = append(recurrence.ExRules, rrule)
+		case "RDATE":
+			t, err := parseTime(propVal, loc)
+			if err != nil {
+				return nil, err
+			}
+
+			recurrence.RDates = append(recurrence.RDates, t)
+		case "EXDATE":
+			t, err := parseTime(propVal, loc)
+			if err != nil {
+				return nil, err
+			}
+
+			recurrence.ExDates = append(recurrence.ExDates, t)
+		}
+	}
+
+	recurrence.SetDtstart()
+
+	return recurrence, nil
+}
+
+// ParseRRule parses a single RRule pattern.
+func ParseRRule(str string) (*RRule, error) {
 	scanner := bufio.NewScanner(bytes.NewBufferString(str))
 	scanner.Split(func(data []byte, atEOF bool) (advance int, token []byte, err error) {
 		if atEOF && len(data) == 0 {
@@ -35,7 +104,8 @@ func Parse(str string) (*RRule, error) {
 	rrule := &RRule{}
 
 	for scanner.Scan() {
-		parts := strings.SplitN(scanner.Text(), "=", 2)
+		wholeComponent := scanner.Text()
+		parts := strings.SplitN(wholeComponent, "=", 2)
 		if len(parts) < 2 {
 			return nil, fmt.Errorf("rrule segment %q is invalid", scanner.Text())
 		}
@@ -50,17 +120,11 @@ func Parse(str string) (*RRule, error) {
 			}
 			rrule.Frequency = freq
 		case "UNTIL":
-			t, err := time.Parse(rfc5545, value)
+			t, err := parseTime(wholeComponent, nil)
 			if err != nil {
 				return nil, err
 			}
 			rrule.Until = t
-		case "DTSTART":
-			t, err := time.Parse(rfc5545, value)
-			if err != nil {
-				return nil, err
-			}
-			rrule.Dtstart = t
 
 		case "COUNT":
 			i, err := strconv.Atoi(value)

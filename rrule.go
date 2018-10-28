@@ -7,13 +7,20 @@ import (
 	"time"
 )
 
+// RRule represents a single pattern within a recurrence.
 type RRule struct {
 	Frequency Frequency
 
 	// Either Until or Count may be set, but not both
-	Until time.Time
+	Until         time.Time
+	UntilFloating bool // If true, the RRule will encode using local time (no offset).
+
 	Count uint64
 
+	// Dtstart is not actually part of the RRule when
+	// encoded, but it's included here as a field because
+	// it's required when expading the recurrence.
+	//
 	// If zero, time.Now is used when an iterator is generated
 	Dtstart time.Time
 

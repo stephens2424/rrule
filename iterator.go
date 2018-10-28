@@ -3,6 +3,7 @@ package rrule
 import "time"
 
 type Iterator interface {
+	Peek() *time.Time
 	Next() *time.Time
 }
 
@@ -28,9 +29,18 @@ type iterator struct {
 }
 
 func (i *iterator) Next() *time.Time {
+	t := i.Peek()
+	if len(i.queue) > 1 {
+		i.queue = i.queue[1:]
+	} else if len(i.queue) == 1 {
+		i.queue = nil
+	}
+	return t
+}
+
+func (i *iterator) Peek() *time.Time {
 	if len(i.queue) > 0 {
 		r := i.queue[0]
-		i.queue = i.queue[1:]
 		return &r
 	}
 
@@ -85,7 +95,7 @@ func (i *iterator) Next() *time.Time {
 
 		i.totalQueued += uint64(len(variations))
 
-		i.queue = variations[1:]
+		i.queue = variations[:]
 		return &variations[0]
 	}
 }

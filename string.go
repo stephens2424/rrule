@@ -13,12 +13,11 @@ func (rrule RRule) String() string {
 
 	if !rrule.Until.IsZero() {
 		str.WriteString(";UNTIL=")
-		str.WriteString(rrule.Until.Format(rfc5545))
-	}
-
-	if !rrule.Dtstart.IsZero() {
-		str.WriteString(";DTSTART=")
-		str.WriteString(rrule.Dtstart.Format(rfc5545))
+		if rrule.UntilFloating {
+			str.WriteString(rrule.Until.Format(rfc5545_WithoutOffset))
+		} else {
+			str.WriteString(rrule.Until.Format(rfc5545_WithOffset))
+		}
 	}
 
 	if rrule.Count != 0 {

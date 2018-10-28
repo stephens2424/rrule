@@ -272,6 +272,18 @@ var cases = []struct {
 	},
 
 	{
+		Name:   "no daily daylight savings",
+		String: "FREQ=DAILY;COUNT=3",
+		RRule: RRule{
+			Frequency: Daily,
+			Count:     3,
+			Dtstart:   time.Date(2018, time.November, 03, 01, 00, 00, 00, Phoenix()),
+		},
+		Dates:    []string{"2018-11-03T01:00:00-07:00", "2018-11-04T01:00:00-07:00", "2018-11-05T01:00:00-07:00"},
+		Terminal: true,
+	},
+
+	{
 		Name: "half-hourly daylight savings",
 		RRule: RRule{
 			Frequency: Hourly,
@@ -286,7 +298,15 @@ var cases = []struct {
 }
 
 func NewYork() *time.Location {
-	ny, err := time.LoadLocation("America/New_York")
+	return mustLoadLoc("America/New_York")
+}
+
+func Phoenix() *time.Location {
+	return mustLoadLoc("America/Phoenix")
+}
+
+func mustLoadLoc(loc string) *time.Location {
+	ny, err := time.LoadLocation(loc)
 	if ny == nil {
 		errStr := "not found"
 		if err != nil {
@@ -306,20 +326,20 @@ func TestRRule(t *testing.T) {
 
 		t.Run(tc.Name, func(t *testing.T) {
 			if tc.String != "" {
-				apply := tc.String + ";DTSTART=" + now.Format(rfc5545)
-				t.Log(apply)
+				t.Log(tc.String)
 
-				parsed, err := Parse(apply)
+				parsed, err := ParseRRule(tc.String)
 				require.NoError(t, err)
 				require.NotNil(t, parsed)
 
-				// unset dtstart for the String() comparison
+				// unset dtstart for the comparisons, because it's only used operationally.
+				// it's set on the test cases because we need it to run them.
 				dtstart := tc.RRule.Dtstart
 				tc.RRule.Dtstart = time.Time{}
 				assert.Equal(t, tc.String, tc.RRule.String())
+				assert.Equal(t, tc.RRule, *parsed)
 
 				tc.RRule.Dtstart = dtstart.Truncate(time.Second) // restore dtstart, but truncate it because rrule only operates at second.
-				assert.Equal(t, tc.RRule, *parsed)
 			}
 
 			dates := tc.RRule.All(0)
