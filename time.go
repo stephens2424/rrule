@@ -2,6 +2,7 @@ package rrule
 
 import (
 	"errors"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -45,5 +46,34 @@ func parseTime(str string, defaultLoc *time.Location) (time.Time, error) {
 		t, err = time.ParseInLocation(rfc5545_WithoutOffset, str, loc)
 	}
 
+	// From RFC 5545:
+	//
+	//     If, based on the definition of the referenced time zone, the local
+	//     time described occurs more than once (when changing from daylight
+	//     to standard time), the DATE-TIME value refers to the first
+	//     occurrence of the referenced time.  Thus, TZID=America/
+	//     New_York:20071104T013000 indicates November 4, 2007 at 1:30 A.M.
+	//     EDT (UTC-04:00).  If the local time described does not occur (when
+	//     changing from standard to daylight time), the DATE-TIME value is
+	//     interpreted using the UTC offset before the gap in local times.
+	//     Thus, TZID=America/New_York:20070311T023000 indicates March 11,
+	//     2007 at 3:30 A.M. EDT (UTC-04:00), one hour after 1:30 A.M. EST
+	//     (UTC-05:00).
+	//
+	// However, Go's time.ParseInLocation makes no guarantee about how it
+	// behaves relative to "fall-back" repetition of an hour in DST
+	// transitions. (time.Date explicitly documents the same concept is
+	// undefined.) Therefore, here, we normalize according to the spec by
+	// trying to remove an hour and see if the local time is the same, and
+	// if so, we keep that difference. Otherwise, if the original string was
+	// in the 2am range, but the parsed time is less than 2 o'clock, advance an hour.
+	if tMinusHour := t.Add(-1 * time.Hour); t.Hour() == tMinusHour.Hour() {
+		t = tMinusHour
+	} else if twoAMRegex.MatchString(str) {
+		t = t.Add(1 * time.Hour)
+	}
+
 	return t, err
 }
+
+var twoAMRegex = regexp.MustCompile("T02[0-9]{4}(Z|[0-9]{4})?$")
