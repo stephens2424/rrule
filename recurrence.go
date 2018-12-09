@@ -98,11 +98,11 @@ type recurrenceIterator struct {
 func (ri *recurrenceIterator) Peek() *time.Time {
 	next := ri.rrules.Peek()
 
-	if next == nil {
-		return nil
-	}
-
 	for {
+		if next == nil {
+			return nil
+		}
+
 		nextException := ri.exrules.Peek()
 
 		if nextException != nil && nextException.Before(*next) {
@@ -112,6 +112,7 @@ func (ri *recurrenceIterator) Peek() *time.Time {
 
 		if nextException != nil && nextException.Equal(*next) {
 			next = ri.rrules.Next()
+
 			continue
 		}
 

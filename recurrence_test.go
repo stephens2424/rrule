@@ -27,6 +27,20 @@ var recurrenceCases = []struct {
 	},
 	Dates:  []string{"2018-08-25T09:08:07Z", "2018-08-26T09:08:07Z", "2018-08-27T09:08:07Z", "2018-08-29T09:08:07Z"},
 	String: "DTSTART:20180825T090807Z\nRRULE:FREQ=DAILY;COUNT=5\nEXRULE:FREQ=MONTHLY;BYDAY=-1TU\n",
+}, {
+	Name: "More",
+	Recurrence: &Recurrence{
+		Dtstart: now,
+		RRules: []*RRule{
+			{Frequency: Daily, Interval: 3, Count: 6},
+		},
+		ExRules: []*RRule{
+			{Frequency: Daily, Interval: 2},
+			{Frequency: Monthly, ByWeekdays: []QualifiedWeekday{{N: -1, WD: time.Tuesday}}},
+		},
+	},
+	Dates:  []string{"2018-09-03T09:08:07Z", "2018-09-09T09:08:07Z"},
+	String: "DTSTART:20180825T090807Z\nRRULE:FREQ=DAILY;COUNT=6;INTERVAL=3\nEXRULE:FREQ=DAILY;INTERVAL=2\nEXRULE:FREQ=MONTHLY;BYDAY=-1TU\n",
 }}
 
 func TestRecurrence(t *testing.T) {
