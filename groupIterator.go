@@ -1,6 +1,9 @@
 package rrule
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type groupIterator struct {
 	currentMin *int
@@ -10,7 +13,15 @@ type groupIterator struct {
 func groupIteratorFromRRules(rrules []*RRule) *groupIterator {
 	gi := &groupIterator{}
 	for _, rr := range rrules {
-		gi.iters = append(gi.iters, rr.Iterator())
+		iter := rr.Iterator()
+		if iter == nil {
+			panic(fmt.Sprintf("rrule %q produced a nil iterator", rr))
+		}
+		if iter.(*iterator).next == nil {
+			panic(fmt.Sprintf("rrule %q produced a faulty iterator", rr))
+		}
+
+		gi.iters = append(gi.iters, iter)
 	}
 
 	return gi
@@ -29,6 +40,7 @@ func (gi *groupIterator) Peek() *time.Time {
 		if t != nil {
 			if min == nil {
 				min = t
+				minIdx = i
 			} else {
 				if t.Before(*min) {
 					min = t

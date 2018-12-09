@@ -1,6 +1,8 @@
 package rrule
 
-import "time"
+import (
+	"time"
+)
 
 type Iterator interface {
 	Peek() *time.Time
@@ -48,6 +50,10 @@ func (i *iterator) Peek() *time.Time {
 		if i.totalQueued >= i.queueCap {
 			return nil
 		}
+	}
+
+	if i.next == nil {
+		return nil
 	}
 
 	for {

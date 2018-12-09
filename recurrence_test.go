@@ -1,7 +1,6 @@
 package rrule
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -9,36 +8,45 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRecurrence(t *testing.T) {
-	for _, tc := range cases {
-		if tc.NoTest {
-			continue
-		}
+var recurrenceCases = []struct {
+	Name string
 
+	Recurrence *Recurrence
+	String     string
+	Dates      []string
+}{{
+	Name: "Simple",
+	Recurrence: &Recurrence{
+		Dtstart: now,
+		RRules: []*RRule{
+			{Frequency: Daily, Count: 5},
+		},
+		ExRules: []*RRule{
+			{Frequency: Monthly, ByWeekdays: []QualifiedWeekday{{N: -1, WD: time.Tuesday}}},
+		},
+	},
+	Dates:  []string{"2018-08-25T09:08:07Z", "2018-08-26T09:08:07Z", "2018-08-27T09:08:07Z", "2018-08-29T09:08:07Z"},
+	String: "DTSTART:20180825T090807Z\nRRULE:FREQ=DAILY;COUNT=5\nEXRULE:FREQ=MONTHLY;BYDAY=-1TU\n",
+}}
+
+func TestRecurrence(t *testing.T) {
+	for _, tc := range recurrenceCases {
 		if tc.String == "" {
 			continue
 		}
 
 		t.Run(tc.Name, func(t *testing.T) {
-			src := fmt.Sprintf("DTSTART:%s\nRRULE:%s", tc.RRule.Dtstart.Format(rfc5545_WithOffset), tc.RRule.String())
-			if tc.RRule.Dtstart.Location() != time.UTC {
-				src = fmt.Sprintf("DTSTART;TZID=%s:%s\nRRULE:%s", tc.RRule.Dtstart.Location(), tc.RRule.Dtstart.Format(rfc5545_WithoutOffset), tc.RRule.String())
-			}
+			src := tc.Recurrence.String()
 
-			parsed, err := ParseRecurrence([]byte(src), tc.RRule.Dtstart.Location())
+			parsed, err := ParseRecurrence([]byte(src), tc.Recurrence.Dtstart.Location())
 			require.NoError(t, err)
 			require.NotNil(t, parsed)
 
 			t.Log(src)
+			assert.Equal(t, tc.String, src)
 
-			assert.Len(t, parsed.ExRules, 0)
-			assert.Len(t, parsed.RDates, 0)
-			assert.Len(t, parsed.ExDates, 0)
-			require.Len(t, parsed.RRules, 1)
-
-			tc.RRule.Dtstart = tc.RRule.Dtstart.Truncate(time.Second)
-
-			assert.Equal(t, tc.RRule, *parsed.RRules[0])
+			dates := All(tc.Recurrence.Iterator(), 0)
+			assert.Equal(t, tc.Dates, rfcAll(dates))
 		})
 	}
 }

@@ -2,6 +2,7 @@ package rrule
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 	"strings"
 	"time"
@@ -77,3 +78,15 @@ func parseTime(str string, defaultLoc *time.Location) (time.Time, error) {
 }
 
 var twoAMRegex = regexp.MustCompile("T02[0-9]{4}(Z|[0-9]{4})?$")
+
+func formatTime(prefix string, t time.Time, floatingLocation bool) string {
+	if floatingLocation {
+		return fmt.Sprintf("%s;TZID=%s:%s", prefix, t.Location(), t.Format(rfc5545_WithoutOffset))
+	}
+
+	if t.Location() == time.UTC {
+		return fmt.Sprintf("%s:%sZ", prefix, t.Format(rfc5545_WithoutOffset))
+	}
+
+	return fmt.Sprintf("%s:%s", prefix, t.Format(rfc5545_WithOffset))
+}

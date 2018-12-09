@@ -9,7 +9,7 @@ import (
 	rrule "github.com/teambition/rrule-go"
 )
 
-var now = time.Date(2018, 8, 25, 9, 8, 7, 6, time.UTC)
+var now = time.Date(2018, 8, 25, 9, 8, 7, 6, time.UTC) // it's a saturday
 
 var cases = []struct {
 	Name     string
