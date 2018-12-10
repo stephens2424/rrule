@@ -5,17 +5,26 @@ import (
 	"time"
 )
 
+// Recurrence expresses a complex pattern of repeating events composed of individual
+// patterns and extra days that are filtered by exclusion patterns and days.
 type Recurrence struct {
 	// Dtstart specifies the time to begin recurrence. The location of Dtstart is
 	// the location that will be used to process the recurrence.
 	Dtstart time.Time
 
-	// FLoatingLocation, if true, Dtstart will be encoded in local time.
-	FloatingLocation bool
+	FloatingLocation bool // If true, Dtstart will be encoded in local time.
 
-	RRules  []*RRule
-	ExRules []*RRule // note this feature was deprecated in RFC5545
-	RDates  []time.Time
+	// Patterns and instances to include. Repeated instances are included only
+	// once, even if defined by multiple patterns.
+	RRules []*RRule
+	RDates []time.Time
+
+	// Patterns and instances to exclude. These take precedence over the
+	// inclusions. Note: this feature was deprecated in RFC5545, noting its
+	// limited (and buggy) adoption and real-world use case. It is
+	// implemented here, nonetheless, for maximum flexibility and
+	// compatibility.
+	ExRules []*RRule
 	ExDates []time.Time
 }
 

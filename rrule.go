@@ -37,27 +37,16 @@ type RRule struct {
 	ByYearDays    []int // 1 to 366
 	BySetPos      []int // -366 to 366
 
-	IB InvalidBehavior
+	ib invalidBehavior
 
 	WeekStart *time.Weekday // if nil, Monday
 }
 
 func (rrule RRule) All(limit int) []time.Time {
-	it := rrule.Iterator()
-	all := make([]time.Time, 0)
-	for {
-		next := it.Next()
-		if next == nil {
-			break
-		}
-		all = append(all, *next)
-		if limit > 0 && len(all) == limit {
-			break
-		}
-	}
-	return all
+	return All(rrule.Iterator(), limit)
 }
 
+// Validate checks that the pattern is valid.
 func (rrule RRule) Validate() error {
 	if rrule.Frequency != Yearly && rrule.Frequency != Monthly {
 		for _, wd := range rrule.ByWeekdays {
@@ -104,6 +93,7 @@ func (rrule RRule) Validate() error {
 	return nil
 }
 
+// Iterator returns an Iterator for the pattern. The pattern must be valid or Iterator will panic.
 func (rrule RRule) Iterator() Iterator {
 	err := rrule.Validate()
 	if err != nil {
@@ -381,7 +371,7 @@ func setMonthly(rrule RRule) *iterator {
 			if len(rrule.ByMonthDays) > 0 {
 				tt = expandByMonthDays(tt, rrule.ByMonthDays...)
 			} else if len(rrule.ByWeekdays) > 0 {
-				tt = expandMonthByWeekdays(tt, rrule.IB, rrule.BySetPos, rrule.ByWeekdays...)
+				tt = expandMonthByWeekdays(tt, rrule.ib, rrule.BySetPos, rrule.ByWeekdays...)
 			}
 			return tt
 		},
@@ -527,14 +517,14 @@ func setYearly(rrule RRule) *iterator {
 			tt = expandByMonthDays(tt, rrule.ByMonthDays...)
 			tt = expandByYearDays(tt, rrule.ByYearDays...)
 			tt = expandByWeekNumbers(tt, rrule.weekStart(), rrule.ByWeekNumbers...)
-			tt = expandByMonths(tt, rrule.IB, rrule.ByMonths...)
+			tt = expandByMonths(tt, rrule.ib, rrule.ByMonths...)
 
 			// see note 2 on page 44 of RFC 5545, including erratum 3779.
 			if len(rrule.ByYearDays) == 0 && len(rrule.ByMonthDays) == 0 {
 				if len(rrule.ByMonths) != 0 {
-					tt = expandMonthByWeekdays(tt, rrule.IB, nil, rrule.ByWeekdays...)
+					tt = expandMonthByWeekdays(tt, rrule.ib, nil, rrule.ByWeekdays...)
 				} else {
-					tt = expandYearByWeekdays(tt, rrule.IB, rrule.ByWeekdays...)
+					tt = expandYearByWeekdays(tt, rrule.ib, rrule.ByWeekdays...)
 				}
 			}
 

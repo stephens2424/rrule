@@ -12,7 +12,7 @@ import (
 // list, outweighs the concerns.
 //
 // weekdays must have at least one element
-func weekdaysInMonth(t time.Time, weekdays []QualifiedWeekday, bySetPos []int, ib InvalidBehavior) []time.Time {
+func weekdaysInMonth(t time.Time, weekdays []QualifiedWeekday, bySetPos []int, ib invalidBehavior) []time.Time {
 	firstDay := firstOfMonth(t)
 	firstWeekday := firstDay.Weekday()
 	lastDay := lastOfMonth(t)

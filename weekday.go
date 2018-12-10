@@ -46,7 +46,7 @@ func WeekdayString(wd time.Weekday) string {
 	return wdStr
 }
 
-func weekdaysInYear(t time.Time, wd QualifiedWeekday, ib InvalidBehavior) []time.Time {
+func weekdaysInYear(t time.Time, wd QualifiedWeekday, ib invalidBehavior) []time.Time {
 	allWDs := make([]time.Time, 0, 5)
 
 	// start on first of year

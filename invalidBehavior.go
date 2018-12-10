@@ -1,9 +1,9 @@
 package rrule
 
-type InvalidBehavior int
+type invalidBehavior int
 
 const (
-	OmitInvalid InvalidBehavior = iota
+	OmitInvalid invalidBehavior = iota
 	NextInvalid
 	PrevInvalid
 )

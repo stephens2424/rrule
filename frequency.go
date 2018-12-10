@@ -1,5 +1,6 @@
 package rrule
 
+// Frequency defines a set of constants for a base factor for how often recurrences happen.
 type Frequency int
 
 func (f Frequency) String() string {

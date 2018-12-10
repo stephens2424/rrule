@@ -127,7 +127,7 @@ func expandByWeekNumbers(tt []time.Time, weekStarts time.Weekday, weekNumbers ..
 	return e
 }
 
-func expandByMonths(tt []time.Time, ib InvalidBehavior, months ...time.Month) []time.Time {
+func expandByMonths(tt []time.Time, ib invalidBehavior, months ...time.Month) []time.Time {
 	if len(months) == 0 {
 		return tt
 	}
@@ -160,7 +160,7 @@ func expandByMonths(tt []time.Time, ib InvalidBehavior, months ...time.Month) []
 // bySetPos is not nil, it is assumed tt is the full set of instances within the
 // monthly iteration, and only the instances matching the posisions of bySetPos
 // are returned. This is an optimization.
-func expandMonthByWeekdays(tt []time.Time, ib InvalidBehavior, bySetPos []int, weekdays ...QualifiedWeekday) []time.Time {
+func expandMonthByWeekdays(tt []time.Time, ib invalidBehavior, bySetPos []int, weekdays ...QualifiedWeekday) []time.Time {
 	if len(weekdays) == 0 {
 		return tt
 	}
@@ -173,7 +173,7 @@ func expandMonthByWeekdays(tt []time.Time, ib InvalidBehavior, bySetPos []int, w
 	return e
 }
 
-func expandYearByWeekdays(tt []time.Time, ib InvalidBehavior, weekdays ...QualifiedWeekday) []time.Time {
+func expandYearByWeekdays(tt []time.Time, ib invalidBehavior, weekdays ...QualifiedWeekday) []time.Time {
 	if len(weekdays) == 0 {
 		return tt
 	}

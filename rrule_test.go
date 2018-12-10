@@ -295,6 +295,18 @@ var cases = []struct {
 		Terminal:               true,
 		NoTeambitionComparison: true,
 	},
+
+	{
+		Name: "rfc: Monthly on the first Friday until December 24, 1997",
+		RRule: RRule{
+			Frequency:  Monthly,
+			Until:      time.Date(1997, time.December, 24, 0, 0, 0, 0, time.UTC),
+			ByWeekdays: []QualifiedWeekday{{WD: time.Friday, N: 1}},
+			Dtstart:    time.Date(1997, time.September, 5, 9, 0, 0, 0, NewYork()),
+		},
+		String: "FREQ=MONTHLY;UNTIL=19971224T000000Z;BYDAY=1FR",
+		Dates:  []string{"1997-09-05T09:00:00-04:00", "1997-10-03T09:00:00-04:00", "1997-11-07T09:00:00-05:00", "1997-12-05T09:00:00-05:00"},
+	},
 }
 
 func NewYork() *time.Location {
@@ -336,7 +348,7 @@ func TestRRule(t *testing.T) {
 				// it's set on the test cases because we need it to run them.
 				dtstart := tc.RRule.Dtstart
 				tc.RRule.Dtstart = time.Time{}
-				assert.Equal(t, tc.String, tc.RRule.String())
+				assert.Equal(t, tc.String, tc.RRule.String(), "RRule does not render to the correct string")
 				assert.Equal(t, tc.RRule, *parsed)
 
 				tc.RRule.Dtstart = dtstart.Truncate(time.Second) // restore dtstart, but truncate it because rrule only operates at second.
