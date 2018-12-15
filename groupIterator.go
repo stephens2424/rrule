@@ -45,6 +45,10 @@ func (gi *groupIterator) Peek() *time.Time {
 				if t.Before(*min) {
 					min = t
 					minIdx = i
+				} else if t.Truncate(time.Second).Equal(min.Truncate(time.Second)) {
+					// we equal the current minimum. we can safely
+					// skip this
+					iter.Next()
 				}
 			}
 		}

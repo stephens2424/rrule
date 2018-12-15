@@ -309,6 +309,14 @@ var cases = []struct {
 	},
 }
 
+func MustRRule(str string) *RRule {
+	r, err := ParseRRule(str)
+	if err != nil {
+		panic(err)
+	}
+	return r
+}
+
 func NewYork() *time.Location {
 	return mustLoadLoc("America/New_York")
 }

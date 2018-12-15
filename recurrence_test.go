@@ -42,22 +42,6 @@ var recurrenceCases = []struct {
 	Dates:  []string{"2018-09-03T09:08:07Z", "2018-09-09T09:08:07Z"},
 	String: "DTSTART:20180825T090807Z\nRRULE:FREQ=DAILY;COUNT=6;INTERVAL=3\nEXRULE:FREQ=DAILY;INTERVAL=2\nEXRULE:FREQ=MONTHLY;BYDAY=-1TU\n",
 }, {
-	// 25 + +  x x
-	// 26 +
-	// 27 + +
-	// 28 +
-	// 29   +  x
-	// 30
-	// 31   +
-	//  1
-	//  2   +  x x
-	//  3
-	//  4   +
-	//  5
-	//  6   +  x
-	//  7
-	//  8   +
-
 	Name: "Multiple",
 	Recurrence: &Recurrence{
 		Dtstart: now,
@@ -65,15 +49,15 @@ var recurrenceCases = []struct {
 			{Frequency: Daily, Count: 4},
 			{Frequency: Daily, Interval: 2, Count: 8},
 		},
-		RDates: []time.Time{time.Date(2018, time.September, 2, 9, 8, 7, 0, time.UTC)},
+		RDates: []time.Time{time.Date(2018, time.September, 2, 9, 8, 7, 0, time.UTC), time.Date(2018, time.September, 2, 9, 8, 7, 0, time.UTC)},
 		ExRules: []*RRule{
 			{Frequency: Daily, Interval: 4},
 			{Frequency: Daily, Interval: 8},
 		},
 		ExDates: []time.Time{time.Date(2018, time.September, 2, 9, 8, 7, 0, time.UTC)},
 	},
-	Dates:  []string{"2018-08-26T09:08:07Z", "2018-08-27T09:08:07Z", "2018-08-28T09:08:07Z", "2018-08-31T09:08:07Z", "2018-09-04T09:08:07Z", "2018-09-08T09:08:07Z"},
-	String: "DTSTART:20180825T090807Z\nRRULE:FREQ=DAILY;COUNT=4\nRRULE:FREQ=DAILY;COUNT=8;INTERVAL=2\nEXRULE:FREQ=DAILY;INTERVAL=4\nEXRULE:FREQ=DAILY;INTERVAL=8\nRDATE:20180902T090807Z\nEXDATE:20180902T090807Z\n",
+	Dates:  []string{"2018-08-26T09:08:07Z", "2018-08-28T09:08:07Z", "2018-08-31T09:08:07Z", "2018-09-04T09:08:07Z", "2018-09-08T09:08:07Z"},
+	String: "DTSTART:20180825T090807Z\nRRULE:FREQ=DAILY;COUNT=4\nRRULE:FREQ=DAILY;COUNT=8;INTERVAL=2\nEXRULE:FREQ=DAILY;INTERVAL=4\nEXRULE:FREQ=DAILY;INTERVAL=8\nRDATE:20180902T090807Z\nRDATE:20180902T090807Z\nEXDATE:20180902T090807Z\n",
 }}
 
 func TestRecurrence(t *testing.T) {
