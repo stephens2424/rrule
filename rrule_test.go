@@ -393,7 +393,7 @@ func TestRRule(t *testing.T) {
 				tc.RRule.Dtstart = dtstart.Truncate(time.Second) // restore dtstart, but truncate it because rrule only operates at second.
 			}
 
-			dates := tc.RRule.All(0)
+			dates := All(tc.RRule.Iterator(), 0)
 			assert.Equal(t, tc.Dates, rfcAll(dates))
 		})
 	}
@@ -430,7 +430,7 @@ func BenchmarkRRule(b *testing.B) {
 
 		b.Run(tc.Name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				tc.RRule.All(0)
+				All(tc.RRule.Iterator(), 0)
 			}
 		})
 	}

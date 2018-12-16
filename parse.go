@@ -214,11 +214,7 @@ func ParseRRule(str string) (RRule, error) {
 	}
 
 	err := rrule.Validate()
-	if err != nil {
-		return rrule, err
-	}
-
-	return rrule, nil
+	return rrule, err
 }
 
 func parseInts(str string) ([]int, error) {

@@ -138,13 +138,13 @@ func expandByMonths(tt []time.Time, ib invalidBehavior, months ...time.Month) []
 			set := time.Date(t.Year(), m, t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location())
 			if set.Month() != m {
 				switch ib {
-				case PrevInvalid:
+				case prevInvalid:
 					set = time.Date(t.Year(), t.Month()+1, -1, t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location())
 					e = append(e, set)
-				case NextInvalid:
+				case nextInvalid:
 					set = time.Date(t.Year(), t.Month()+1, 1, t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location())
 					e = append(e, set)
-				case OmitInvalid:
+				case omitInvalid:
 					// do nothing
 				}
 			} else {

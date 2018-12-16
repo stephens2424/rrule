@@ -2,10 +2,14 @@ package rrule
 
 import (
 	"fmt"
+	"io"
 	"strings"
 	"time"
 )
 
+// Describe returns a rough English description of the recurrence.  This is
+// probably not suitable for truly polished UIs, but may be useful in some
+// circumstances.
 func (rrule RRule) Describe() string {
 	b := &strings.Builder{}
 
@@ -55,10 +59,8 @@ var freqStrs = map[Frequency]string{
 	Minutely: "minute",
 	Secondly: "second",
 }
-var monthStrs = []string{"January", "February", "March", "April", "May", "June", "July", "August", "September", "November", "December"}
-var weekdayStrs = []string{"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"}
 
-func byWeekday(b *strings.Builder, weekdays []QualifiedWeekday) {
+func byWeekday(w io.Writer, weekdays []QualifiedWeekday) {
 	if len(weekdays) == 0 {
 		return
 	}
@@ -75,11 +77,11 @@ func byWeekday(b *strings.Builder, weekdays []QualifiedWeekday) {
 		seen[w] = true
 	}
 
-	fmt.Fprintf(b, ", on %s", joinConj(strs, ", ", "and"))
+	fmt.Fprintf(w, ", on %s", joinConj(strs, ", ", "and"))
 
 }
 
-func byMonthDesc(b *strings.Builder, months []time.Month) {
+func byMonthDesc(w io.Writer, months []time.Month) {
 	if len(months) == 0 {
 		return
 	}
@@ -92,18 +94,18 @@ func byMonthDesc(b *strings.Builder, months []time.Month) {
 		seen[m-1] = true
 	}
 
-	fmt.Fprintf(b, ", in %s", joinConj(strs, ", ", "and"))
+	fmt.Fprintf(w, ", in %s", joinConj(strs, ", ", "and"))
 }
 
-func byTimeDesc(b *strings.Builder, ints []int, unit string) {
+func byTimeDesc(w io.Writer, ints []int, unit string) {
 	if len(ints) == 0 {
 		return
 	}
 
-	fmt.Fprintf(b, ", on the %v %s", ordinalList(ints, ", ", "and"), unit)
+	fmt.Fprintf(w, ", on the %v %s", ordinalList(ints, ", ", "and"), unit)
 }
 
-func setByPosDesc(b *strings.Builder, ints []int) {
+func setByPosDesc(w io.Writer, ints []int) {
 	pos := []int{}
 	neg := []int{}
 
@@ -116,16 +118,16 @@ func setByPosDesc(b *strings.Builder, ints []int) {
 	}
 
 	if len(pos) > 0 && len(neg) == 0 {
-		fmt.Fprintf(b, ", including only the %v instances", ordinalList(pos, ", ", "and"))
+		fmt.Fprintf(w, ", including only the %v instances", ordinalList(pos, ", ", "and"))
 		return
 	}
 	if len(neg) > 0 && len(pos) == 0 {
-		fmt.Fprintf(b, ", including only the %v instances from the end", ordinalList(neg, ", ", "and"))
+		fmt.Fprintf(w, ", including only the %v instances from the end", ordinalList(neg, ", ", "and"))
 		return
 	}
 
 	if len(neg) > 0 && len(pos) > 0 {
-		fmt.Fprintf(b, ", including only the %v instances and the %v instances from the end", ordinalList(pos, ", ", "and"), ordinalList(neg, ", ", "and"))
+		fmt.Fprintf(w, ", including only the %v instances and the %v instances from the end", ordinalList(pos, ", ", "and"), ordinalList(neg, ", ", "and"))
 		return
 	}
 }

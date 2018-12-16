@@ -38,6 +38,8 @@ type Recurrence struct {
 	ExDates []time.Time
 }
 
+// String returns the RFC 5545 representation of the recurrence, which is a
+// newline delimited format.
 func (r *Recurrence) String() string {
 	b := &strings.Builder{}
 	if !r.Dtstart.IsZero() {
@@ -81,7 +83,7 @@ func (r *Recurrence) setDtstart() {
 // number. If the limit is 0, all instances are returned, which will include all
 // instances until (roughly) Go's maximum useful time.Time, in the year 219248499.
 func All(it Iterator, limit int) []time.Time {
-	all := make([]time.Time, 0)
+	var all []time.Time
 	for {
 		next := it.Next()
 		if next == nil {

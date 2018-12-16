@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// String returns the RFC 5545 representation of the RRule.
 func (rrule RRule) String() string {
 	str := &strings.Builder{}
 	str.WriteString("FREQ=")
@@ -14,14 +15,14 @@ func (rrule RRule) String() string {
 	if !rrule.Until.IsZero() {
 		str.WriteString(";UNTIL=")
 		if rrule.UntilFloating {
-			str.WriteString(rrule.Until.Format(rfc5545_WithoutOffset))
+			str.WriteString(rrule.Until.Format(rfc5545WithoutOffset))
 		} else {
-			str.WriteString(rrule.Until.Format(rfc5545_WithOffset))
+			str.WriteString(rrule.Until.Format(rfc5545WithOffset))
 		}
 	}
 
 	if rrule.Count != 0 {
-		str.WriteString(";COUNT=")
+		panicOnWriteErr(str.WriteString(";COUNT="))
 		str.WriteString(strconv.FormatUint(rrule.Count, 10))
 	}
 
@@ -139,4 +140,10 @@ func weekdayString(wd time.Weekday) string {
 	}
 
 	return ""
+}
+
+func panicOnWriteErr(n int, err error) {
+	if err != nil {
+		panic(err)
+	}
 }

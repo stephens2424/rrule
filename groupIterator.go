@@ -33,7 +33,7 @@ func (gi *groupIterator) Peek() *time.Time {
 	}
 
 	var min *time.Time
-	var minIdx int = -1
+	minIdx := -1
 
 	for i, iter := range gi.iters {
 		t := iter.Peek()

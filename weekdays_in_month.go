@@ -101,12 +101,3 @@ func countWeekdaysInMonth(wd time.Weekday, lastDayOfMonth time.Time) int {
 
 	return 4
 }
-
-func monthDates(t time.Time, days []int) []time.Time {
-	dates := make([]time.Time, len(days))
-	for i, d := range days {
-		dates[i] = time.Date(t.Year(), t.Month(), d, t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location())
-	}
-
-	return dates
-}

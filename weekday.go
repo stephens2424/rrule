@@ -75,12 +75,12 @@ func weekdaysInYear(t time.Time, wd QualifiedWeekday, ib invalidBehavior) []time
 		// positive index specified. count to the correct instance
 		if wd.N > len(allWDs) {
 			switch ib {
-			case OmitInvalid:
+			case omitInvalid:
 				return nil
-			case PrevInvalid:
+			case prevInvalid:
 				idx := len(allWDs) - 1
 				return allWDs[idx:idx]
-			case NextInvalid:
+			case nextInvalid:
 				return []time.Time{allWDs[len(allWDs)-1].AddDate(0, 0, 7)}
 			}
 		}
@@ -102,11 +102,11 @@ func weekdaysInYear(t time.Time, wd QualifiedWeekday, ib invalidBehavior) []time
 
 	if idx < 0 || idx > len(allWDs) {
 		switch ib {
-		case OmitInvalid:
+		case omitInvalid:
 			return nil
-		case PrevInvalid:
+		case prevInvalid:
 			return []time.Time{allWDs[0].AddDate(0, 0, -7)}
-		case NextInvalid:
+		case nextInvalid:
 			return allWDs[0:0]
 		}
 	}

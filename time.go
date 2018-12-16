@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	rfc5545_WithOffset    = "20060102T150405Z0700"
-	rfc5545_WithoutOffset = "20060102T150405"
+	rfc5545WithOffset    = "20060102T150405Z0700"
+	rfc5545WithoutOffset = "20060102T150405"
 )
 
 // parseTime parses the time. the boolean is true if the time was in "local" (aka "floating")
@@ -48,10 +48,10 @@ func parseTime(str string, defaultLoc *time.Location) (time.Time, bool, error) {
 
 	offsetFound := true
 
-	t, err := time.ParseInLocation(rfc5545_WithOffset, str, loc)
+	t, err := time.ParseInLocation(rfc5545WithOffset, str, loc)
 	if err != nil {
 		offsetFound = false
-		t, err = time.ParseInLocation(rfc5545_WithoutOffset, str, loc)
+		t, err = time.ParseInLocation(rfc5545WithoutOffset, str, loc)
 	}
 
 	// From RFC 5545:
@@ -88,12 +88,12 @@ var twoAMRegex = regexp.MustCompile("T02[0-9]{4}(Z|[0-9]{4})?$")
 
 func formatTime(prefix string, t time.Time, floatingLocation bool) string {
 	if floatingLocation {
-		return fmt.Sprintf("%s:%s", prefix, t.Format(rfc5545_WithoutOffset))
+		return fmt.Sprintf("%s:%s", prefix, t.Format(rfc5545WithoutOffset))
 	}
 
 	if t.Location() == time.UTC {
-		return fmt.Sprintf("%s:%sZ", prefix, t.Format(rfc5545_WithoutOffset))
+		return fmt.Sprintf("%s:%sZ", prefix, t.Format(rfc5545WithoutOffset))
 	}
 
-	return fmt.Sprintf("%s;TZID=%s:%s", prefix, t.Location(), t.Format(rfc5545_WithoutOffset))
+	return fmt.Sprintf("%s;TZID=%s:%s", prefix, t.Location(), t.Format(rfc5545WithoutOffset))
 }

@@ -1,4 +1,4 @@
-// Package RRule implements recurrence processing as defined by RFC 5545.
+// Package rrule implements recurrence processing as defined by RFC 5545.
 //
 //     FREQ=WEEKLY;BYDAY=MO;INTERVAL=2
 //
@@ -47,10 +47,6 @@ type RRule struct {
 	WeekStart *time.Weekday // if nil, Monday
 }
 
-func (rrule RRule) All(limit int) []time.Time {
-	return All(rrule.Iterator(), limit)
-}
-
 // Validate checks that the pattern is valid.
 func (rrule RRule) Validate() error {
 	if rrule.Frequency != Yearly && rrule.Frequency != Monthly {
@@ -91,7 +87,7 @@ func (rrule RRule) Validate() error {
 
 	for _, sp := range rrule.BySetPos {
 		if sp == 0 || sp < -366 || sp > 366 {
-			return errors.New("BYSETPOS values must be between [-366,-1] or [1,366].")
+			return errors.New("BYSETPOS values must be between [-366,-1] or [1,366]")
 		}
 	}
 
@@ -359,11 +355,10 @@ func setMonthly(rrule RRule) *iterator {
 					validMonth(rrule.ByMonths),
 					validWeekday(rrule.ByWeekdays),
 				)
-			} else {
-				return checkLimiters(t,
-					validMonth(rrule.ByMonths),
-				)
 			}
+			return checkLimiters(t,
+				validMonth(rrule.ByMonths),
+			)
 		},
 
 		variations: func(t *time.Time) []time.Time {
