@@ -318,8 +318,25 @@ var cases = []struct {
 			ByWeekdays: []QualifiedWeekday{{WD: time.Friday, N: 1}},
 			Dtstart:    time.Date(1997, time.September, 5, 9, 0, 0, 0, NewYork()),
 		},
-		String: "FREQ=MONTHLY;UNTIL=19971224T000000Z;BYDAY=1FR",
-		Dates:  []string{"1997-09-05T09:00:00-04:00", "1997-10-03T09:00:00-04:00", "1997-11-07T09:00:00-05:00", "1997-12-05T09:00:00-05:00"},
+		String:   "FREQ=MONTHLY;UNTIL=19971224T000000Z;BYDAY=1FR",
+		Dates:    []string{"1997-09-05T09:00:00-04:00", "1997-10-03T09:00:00-04:00", "1997-11-07T09:00:00-05:00", "1997-12-05T09:00:00-05:00"},
+		Terminal: true,
+	},
+
+	{
+		Name: "end of time",
+		RRule: RRule{
+			Frequency: Yearly,
+			Dtstart:   time.Date(219248495, time.December, 7, 0, 0, 0, 0, time.UTC),
+		},
+		String: "FREQ=YEARLY",
+		Dates: []string{
+			"219248495-12-07T00:00:00Z",
+			"219248496-12-07T00:00:00Z",
+			"219248497-12-07T00:00:00Z",
+			"219248498-12-07T00:00:00Z",
+		},
+		NoTeambitionComparison: true,
 	},
 }
 

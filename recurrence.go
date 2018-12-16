@@ -79,7 +79,7 @@ func (r *Recurrence) setDtstart() {
 
 // All returns all instances from the beginning of the iterator up to a limited
 // number. If the limit is 0, all instances are returned, which will include all
-// instances until Go's maximum useful time.Time, in the year 219248499.
+// instances until (roughly) Go's maximum useful time.Time, in the year 219248499.
 func All(it Iterator, limit int) []time.Time {
 	all := make([]time.Time, 0)
 	for {
