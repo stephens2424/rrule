@@ -9,7 +9,7 @@ import (
 
 func TestGroupIterator(t *testing.T) {
 	iter := groupIteratorFromRRules(
-		[]*RRule{
+		[]RRule{
 			MustRRule("FREQ=WEEKLY;COUNT=5;BYDAY=MO"),
 			MustRRule("FREQ=WEEKLY;COUNT=5;BYDAY=TU"),
 		},

@@ -109,3 +109,6 @@ func (i *iterator) Peek() *time.Time {
 		return &variations[0]
 	}
 }
+
+// https://stackoverflow.com/questions/25065055/what-is-the-maximum-time-time-in-go
+var absoluteMaxTime = time.Unix(1<<63-62135596801, 999999999)

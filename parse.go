@@ -50,11 +50,12 @@ func ParseRecurrence(src []byte, loc *time.Location) (*Recurrence, error) {
 
 		switch propName {
 		case "DTSTART":
-			t, err := parseTime(text, loc)
+			t, floating, err := parseTime(text, loc)
 			if err != nil {
 				return nil, err
 			}
 			recurrence.Dtstart = t
+			recurrence.FloatingLocation = floating
 
 		case "RRULE":
 			rrule, err := ParseRRule(propVal)
@@ -69,14 +70,14 @@ func ParseRecurrence(src []byte, loc *time.Location) (*Recurrence, error) {
 			}
 			recurrence.ExRules = append(recurrence.ExRules, rrule)
 		case "RDATE":
-			t, err := parseTime(propVal, loc)
+			t, _, err := parseTime(propVal, loc)
 			if err != nil {
 				return nil, err
 			}
 
 			recurrence.RDates = append(recurrence.RDates, t)
 		case "EXDATE":
-			t, err := parseTime(propVal, loc)
+			t, _, err := parseTime(propVal, loc)
 			if err != nil {
 				return nil, err
 			}
@@ -85,13 +86,13 @@ func ParseRecurrence(src []byte, loc *time.Location) (*Recurrence, error) {
 		}
 	}
 
-	recurrence.SetDtstart()
+	recurrence.setDtstart()
 
 	return recurrence, nil
 }
 
 // ParseRRule parses a single RRule pattern.
-func ParseRRule(str string) (*RRule, error) {
+func ParseRRule(str string) (RRule, error) {
 	scanner := bufio.NewScanner(bytes.NewBufferString(str))
 	scanner.Split(func(data []byte, atEOF bool) (advance int, token []byte, err error) {
 		if atEOF && len(data) == 0 {
@@ -109,13 +110,13 @@ func ParseRRule(str string) (*RRule, error) {
 		return 0, nil, nil
 	})
 
-	rrule := &RRule{}
+	rrule := RRule{}
 
 	for scanner.Scan() {
 		wholeComponent := scanner.Text()
 		parts := strings.SplitN(wholeComponent, "=", 2)
 		if len(parts) < 2 {
-			return nil, fmt.Errorf("rrule segment %q is invalid", scanner.Text())
+			return rrule, fmt.Errorf("rrule segment %q is invalid", scanner.Text())
 		}
 
 		directive, value := parts[0], parts[1]
@@ -124,96 +125,97 @@ func ParseRRule(str string) (*RRule, error) {
 		case "FREQ":
 			freq, err := strToFreq(value)
 			if err != nil {
-				return nil, err
+				return rrule, err
 			}
 			rrule.Frequency = freq
 		case "UNTIL":
-			t, err := parseTime(wholeComponent, nil)
+			t, floating, err := parseTime(wholeComponent, nil)
 			if err != nil {
-				return nil, err
+				return rrule, err
 			}
 			rrule.Until = t
+			rrule.UntilFloating = floating
 
 		case "COUNT":
 			i, err := strconv.Atoi(value)
 			if err != nil {
-				return nil, err
+				return rrule, err
 			}
 			rrule.Count = uint64(i)
 		case "INTERVAL":
 			i, err := strconv.Atoi(value)
 			if err != nil {
-				return nil, err
+				return rrule, err
 			}
 			rrule.Interval = i
 		case "BYSECOND":
 			ints, err := parseInts(value)
 			if err != nil {
-				return nil, err
+				return rrule, err
 			}
 			rrule.BySeconds = ints
 		case "BYMINUTE":
 			ints, err := parseInts(value)
 			if err != nil {
-				return nil, err
+				return rrule, err
 			}
 			rrule.ByMinutes = ints
 		case "BYHOUR":
 			ints, err := parseInts(value)
 			if err != nil {
-				return nil, err
+				return rrule, err
 			}
 			rrule.ByHours = ints
 		case "BYDAY":
 			wds, err := parseQualifiedWeekdays(value)
 			if err != nil {
-				return nil, err
+				return rrule, err
 			}
 			rrule.ByWeekdays = wds
 		case "BYMONTHDAY":
 			ints, err := parseInts(value)
 			if err != nil {
-				return nil, err
+				return rrule, err
 			}
 			rrule.ByMonthDays = ints
 		case "BYYEARDAY":
 			ints, err := parseInts(value)
 			if err != nil {
-				return nil, err
+				return rrule, err
 			}
 			rrule.ByYearDays = ints
 		case "BYWEEKNO":
 			ints, err := parseInts(value)
 			if err != nil {
-				return nil, err
+				return rrule, err
 			}
 			rrule.ByWeekNumbers = ints
 		case "BYMONTH":
 			months, err := parseMonths(value)
 			if err != nil {
-				return nil, err
+				return rrule, err
 			}
 			rrule.ByMonths = months
 		case "BYSETPOS":
 			ints, err := parseInts(value)
 			if err != nil {
-				return nil, err
+				return rrule, err
 			}
 			rrule.BySetPos = ints
 		case "WKST":
 			wd, err := parseWeekday(value)
 			if err != nil {
-				return nil, err
+				return rrule, err
 			}
 			rrule.WeekStart = &wd
 		default:
-			return nil, fmt.Errorf("%q is not a supported RRULE part", directive)
+			return rrule, fmt.Errorf("%q is not a supported RRULE part", directive)
 		}
 	}
 
 	err := rrule.Validate()
 	if err != nil {
-		return nil, err
+		return rrule, err
 	}
 
 	return rrule, nil

@@ -18,10 +18,10 @@ var recurrenceCases = []struct {
 	Name: "Simple",
 	Recurrence: &Recurrence{
 		Dtstart: now,
-		RRules: []*RRule{
+		RRules: []RRule{
 			{Frequency: Daily, Count: 5},
 		},
-		ExRules: []*RRule{
+		ExRules: []RRule{
 			{Frequency: Monthly, ByWeekdays: []QualifiedWeekday{{N: -1, WD: time.Tuesday}}},
 		},
 	},
@@ -31,10 +31,10 @@ var recurrenceCases = []struct {
 	Name: "More",
 	Recurrence: &Recurrence{
 		Dtstart: now,
-		RRules: []*RRule{
+		RRules: []RRule{
 			{Frequency: Daily, Interval: 3, Count: 6},
 		},
-		ExRules: []*RRule{
+		ExRules: []RRule{
 			{Frequency: Daily, Interval: 2},
 			{Frequency: Monthly, ByWeekdays: []QualifiedWeekday{{N: -1, WD: time.Tuesday}}},
 		},
@@ -45,12 +45,12 @@ var recurrenceCases = []struct {
 	Name: "Multiple",
 	Recurrence: &Recurrence{
 		Dtstart: now,
-		RRules: []*RRule{
+		RRules: []RRule{
 			{Frequency: Daily, Count: 4},
 			{Frequency: Daily, Interval: 2, Count: 8},
 		},
 		RDates: []time.Time{time.Date(2018, time.September, 2, 9, 8, 7, 0, time.UTC), time.Date(2018, time.September, 2, 9, 8, 7, 0, time.UTC)},
-		ExRules: []*RRule{
+		ExRules: []RRule{
 			{Frequency: Daily, Interval: 4},
 			{Frequency: Daily, Interval: 8},
 		},

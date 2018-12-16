@@ -24,9 +24,9 @@ type RRule struct {
 
 	// Dtstart is not actually part of the RRule when
 	// encoded, but it's included here as a field because
-	// it's required when expading the recurrence.
+	// it's required when expading the pattern.
 	//
-	// If zero, time.Now is used when an iterator is generated
+	// If zero, time.Now is used when an iterator is generated.
 	Dtstart time.Time
 
 	// 0 means the default value, which is 1.
@@ -211,7 +211,7 @@ func setSecondly(rrule RRule) *iterator {
 
 	return &iterator{
 		minTime:  start,
-		maxTime:  rrule.Until,
+		maxTime:  timeOrMax(rrule.Until),
 		queueCap: rrule.Count,
 		setpos:   rrule.BySetPos,
 		next:     nextFn,
@@ -251,7 +251,7 @@ func setMinutely(rrule RRule) *iterator {
 
 	return &iterator{
 		minTime:  start,
-		maxTime:  rrule.Until,
+		maxTime:  timeOrMax(rrule.Until),
 		setpos:   rrule.BySetPos,
 		queueCap: rrule.Count,
 		next: func() *time.Time {
@@ -296,7 +296,7 @@ func setHourly(rrule RRule) *iterator {
 
 	return &iterator{
 		minTime:  start,
-		maxTime:  rrule.Until,
+		maxTime:  timeOrMax(rrule.Until),
 		setpos:   rrule.BySetPos,
 		queueCap: rrule.Count,
 		next: func() *time.Time {
@@ -341,7 +341,7 @@ func setMonthly(rrule RRule) *iterator {
 
 	return &iterator{
 		minTime:  start,
-		maxTime:  rrule.Until,
+		maxTime:  timeOrMax(rrule.Until),
 		setpos:   rrule.BySetPos,
 		queueCap: rrule.Count,
 		next: func() *time.Time {
@@ -398,7 +398,7 @@ func setDaily(rrule RRule) *iterator {
 
 	return &iterator{
 		minTime:  start,
-		maxTime:  rrule.Until,
+		maxTime:  timeOrMax(rrule.Until),
 		setpos:   rrule.BySetPos,
 		queueCap: rrule.Count,
 		next: func() *time.Time {
@@ -441,7 +441,7 @@ func setWeekly(rrule RRule) *iterator {
 
 	return &iterator{
 		minTime:  start,
-		maxTime:  rrule.Until,
+		maxTime:  timeOrMax(rrule.Until),
 		setpos:   rrule.BySetPos,
 		queueCap: rrule.Count,
 		next: func() *time.Time {
@@ -483,7 +483,7 @@ func setYearly(rrule RRule) *iterator {
 
 	return &iterator{
 		minTime:  start,
-		maxTime:  rrule.Until,
+		maxTime:  timeOrMax(rrule.Until),
 		setpos:   rrule.BySetPos,
 		queueCap: rrule.Count,
 		next: func() *time.Time {
@@ -544,4 +544,11 @@ func (rrule *RRule) weekStart() time.Weekday {
 		return time.Monday
 	}
 	return *rrule.WeekStart
+}
+
+func timeOrMax(t time.Time) time.Time {
+	if t.IsZero() {
+		return absoluteMaxTime
+	}
+	return t
 }

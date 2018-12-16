@@ -171,6 +171,20 @@ var cases = []struct {
 		},
 		Dates:    []string{"2018-08-25T09:08:07Z", "2018-08-26T09:08:07Z", "2018-08-27T09:08:07Z", "2018-08-28T09:08:07Z", "2018-08-29T09:08:07Z"},
 		Terminal: true,
+		String:   "FREQ=DAILY;UNTIL=20180830T000000Z",
+	},
+
+	{
+		Name: "daily until floating",
+		RRule: RRule{
+			Frequency:     Daily,
+			Until:         time.Date(2018, 8, 30, 0, 0, 0, 0, time.UTC),
+			UntilFloating: true,
+			Dtstart:       now,
+		},
+		Dates:    []string{"2018-08-25T09:08:07Z", "2018-08-26T09:08:07Z", "2018-08-27T09:08:07Z", "2018-08-28T09:08:07Z", "2018-08-29T09:08:07Z"},
+		Terminal: true,
+		String:   "FREQ=DAILY;UNTIL=20180830T000000",
 	},
 
 	{
@@ -309,7 +323,7 @@ var cases = []struct {
 	},
 }
 
-func MustRRule(str string) *RRule {
+func MustRRule(str string) RRule {
 	r, err := ParseRRule(str)
 	if err != nil {
 		panic(err)
@@ -357,7 +371,7 @@ func TestRRule(t *testing.T) {
 				dtstart := tc.RRule.Dtstart
 				tc.RRule.Dtstart = time.Time{}
 				assert.Equal(t, tc.String, tc.RRule.String(), "RRule does not render to the correct string")
-				assert.Equal(t, tc.RRule, *parsed)
+				assert.Equal(t, tc.RRule, parsed)
 
 				tc.RRule.Dtstart = dtstart.Truncate(time.Second) // restore dtstart, but truncate it because rrule only operates at second.
 			}

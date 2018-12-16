@@ -10,7 +10,7 @@ type groupIterator struct {
 	iters      []Iterator
 }
 
-func groupIteratorFromRRules(rrules []*RRule) *groupIterator {
+func groupIteratorFromRRules(rrules []RRule) *groupIterator {
 	gi := &groupIterator{}
 	for _, rr := range rrules {
 		iter := rr.Iterator()

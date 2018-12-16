@@ -8,15 +8,25 @@ import (
 // Recurrence expresses a complex pattern of repeating events composed of individual
 // patterns and extra days that are filtered by exclusion patterns and days.
 type Recurrence struct {
-	// Dtstart specifies the time to begin recurrence. The location of Dtstart is
-	// the location that will be used to process the recurrence.
+	// Dtstart specifies the time to begin recurrence. If zero, time.Now is
+	// used when an iterator is generated.  The location of Dtstart is the
+	// location that will be used to process the recurrence, which is
+	// particularly relevant for calculations affected by Daylight Savings.
 	Dtstart time.Time
 
-	FloatingLocation bool // If true, Dtstart will be encoded in local time.
+	// FloatingLocation determines how the Recurrence is encoded to string.
+	// If true, Dtstart, RDates, and ExDates will be written in local time,
+	// excluding the offset or timezone indicator, to represent a local time
+	// independent of timezone. See ParseRecurrence or RFC 5545 for more
+	// detail.
+	FloatingLocation bool
 
 	// Patterns and instances to include. Repeated instances are included only
 	// once, even if defined by multiple patterns.
-	RRules []*RRule
+	//
+	// The Dtstart property of RRule and ExRule patterns are
+	// ignored, including when the above Dtstart property is zero.
+	RRules []RRule
 	RDates []time.Time
 
 	// Patterns and instances to exclude. These take precedence over the
@@ -24,7 +34,7 @@ type Recurrence struct {
 	// limited (and buggy) adoption and real-world use case. It is
 	// implemented here, nonetheless, for maximum flexibility and
 	// compatibility.
-	ExRules []*RRule
+	ExRules []RRule
 	ExDates []time.Time
 }
 
@@ -56,20 +66,20 @@ func (r *Recurrence) String() string {
 	return b.String()
 }
 
-func (r *Recurrence) SetDtstart() {
-	for _, rr := range r.RRules {
+func (r *Recurrence) setDtstart() {
+	for i, rr := range r.RRules {
 		rr.Dtstart = r.Dtstart
+		r.RRules[i] = rr
 	}
-	for _, rr := range r.ExRules {
+	for i, rr := range r.ExRules {
 		rr.Dtstart = r.Dtstart
+		r.ExRules[i] = rr
 	}
 }
 
 // All returns all instances from the beginning of the iterator up to a limited
-// number. If the limit is 0, all instances are returned, which may be an
-// unbounded operation and loop forever.
-//
-// TODO: bound all operations to the maximum time.Time.
+// number. If the limit is 0, all instances are returned, which will include all
+// instances until Go's maximum useful time.Time, in the year 219248499.
 func All(it Iterator, limit int) []time.Time {
 	all := make([]time.Time, 0)
 	for {
@@ -85,8 +95,9 @@ func All(it Iterator, limit int) []time.Time {
 	return all
 }
 
+// Iterator returns an iterator for the recurrence.
 func (r Recurrence) Iterator() Iterator {
-	r.SetDtstart()
+	r.setDtstart()
 
 	ri := &recurrenceIterator{
 		rrules:  groupIteratorFromRRules(r.RRules),

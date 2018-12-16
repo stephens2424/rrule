@@ -13,7 +13,9 @@ const (
 	rfc5545_WithoutOffset = "20060102T150405"
 )
 
-func parseTime(str string, defaultLoc *time.Location) (time.Time, error) {
+// parseTime parses the time. the boolean is true if the time was in "local" (aka "floating")
+// time, and thus the defautlLoc was used.
+func parseTime(str string, defaultLoc *time.Location) (time.Time, bool, error) {
 	//        DTSTART;TZID=America/New_York:19970902T090000
 
 	var t time.Time
@@ -22,28 +24,33 @@ func parseTime(str string, defaultLoc *time.Location) (time.Time, error) {
 		defaultLoc = time.UTC
 	}
 	loc := defaultLoc
+	tzidFound := false
 
 	if idBeg := strings.Index(str, ";TZID="); idBeg >= 0 {
 		locBeg := idBeg + 6
 		locEnd := locBeg + strings.Index(str[locBeg:], ":")
 		if locEnd < 0 {
-			return t, errors.New("no end to TZID")
+			return t, false, errors.New("no end to TZID")
 		}
 
 		var err error
 		loc, err = LoadLocation(str[locBeg:locEnd])
 		if err != nil {
-			return t, err
+			return t, false, err
 		}
 
+		tzidFound = true
 		str = str[locEnd+1:]
 	} else {
 		colonIdx := strings.IndexAny(str, ":=")
 		str = str[colonIdx+1:]
 	}
 
+	offsetFound := true
+
 	t, err := time.ParseInLocation(rfc5545_WithOffset, str, loc)
 	if err != nil {
+		offsetFound = false
 		t, err = time.ParseInLocation(rfc5545_WithoutOffset, str, loc)
 	}
 
@@ -74,19 +81,19 @@ func parseTime(str string, defaultLoc *time.Location) (time.Time, error) {
 		t = t.Add(1 * time.Hour)
 	}
 
-	return t, err
+	return t, !(tzidFound || offsetFound), err
 }
 
 var twoAMRegex = regexp.MustCompile("T02[0-9]{4}(Z|[0-9]{4})?$")
 
 func formatTime(prefix string, t time.Time, floatingLocation bool) string {
 	if floatingLocation {
-		return fmt.Sprintf("%s;TZID=%s:%s", prefix, t.Location(), t.Format(rfc5545_WithoutOffset))
+		return fmt.Sprintf("%s:%s", prefix, t.Format(rfc5545_WithoutOffset))
 	}
 
 	if t.Location() == time.UTC {
 		return fmt.Sprintf("%s:%sZ", prefix, t.Format(rfc5545_WithoutOffset))
 	}
 
-	return fmt.Sprintf("%s:%s", prefix, t.Format(rfc5545_WithOffset))
+	return fmt.Sprintf("%s;TZID=%s:%s", prefix, t.Location(), t.Format(rfc5545_WithoutOffset))
 }
