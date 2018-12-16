@@ -6,10 +6,12 @@ import (
 
 // Iterator scans over a series of times.
 type Iterator interface {
-	// Peek returns the next time without advancing the iterator, or nil if the iterator has ended.
+	// Peek returns the next time without advancing the iterator, or nil if
+	// the iterator has ended.
 	Peek() *time.Time
 
-	// Next returns the next time and advances the iterator. Nil is returned if the iterator has ended.
+	// Next returns the next time and advances the iterator. Nil is
+	// returned if the iterator has ended.
 	Next() *time.Time
 }
 
