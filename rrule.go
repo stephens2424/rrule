@@ -1,3 +1,8 @@
+// Package RRule implements recurrence processing as defined by RFC 5545.
+//
+//     FREQ=WEEKLY;BYDAY=MO;INTERVAL=2
+//
+// would generate occurrences every other week on Monday.
 package rrule
 
 import (

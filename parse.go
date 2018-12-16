@@ -23,7 +23,15 @@ import (
 //	RRULE:FREQ=YEARLY;BYSECOND=-10
 //
 // might be useful to alert you to start counting down to the new year, no
-// matter your timezone. If nil, time.UTC will be used.
+// matter your timezone. A rule with a specific timezone, however,
+//
+//	DTSTART;TZID=America/New_York:19991231T000000
+//	RRULE:FREQ=YEARLY;BYSECOND=-10
+//
+// would track a specific timezone and ignore loc. This example would alert you
+// to count down to the ball dropping in New York's Times Square for each new year.
+//
+// If nil, time.UTC will be used.
 func ParseRecurrence(src []byte, loc *time.Location) (*Recurrence, error) {
 	scanner := bufio.NewScanner(bytes.NewBuffer(src))
 
@@ -201,6 +209,11 @@ func ParseRRule(str string) (*RRule, error) {
 		default:
 			return nil, fmt.Errorf("%q is not a supported RRULE part", directive)
 		}
+	}
+
+	err := rrule.Validate()
+	if err != nil {
+		return nil, err
 	}
 
 	return rrule, nil
