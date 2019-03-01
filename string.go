@@ -51,6 +51,11 @@ func (rrule RRule) String() string {
 		str.WriteString(weekdaylist(rrule.ByWeekdays))
 	}
 
+	if len(rrule.ByWeekNumbers) > 0 {
+		str.WriteString(";BYWEEKNO=")
+		str.WriteString(intlist(rrule.ByWeekNumbers))
+	}
+
 	if len(rrule.ByMonthDays) > 0 {
 		str.WriteString(";BYMONTHDAY=")
 		str.WriteString(intlist(rrule.ByMonthDays))
@@ -74,6 +79,17 @@ func (rrule RRule) String() string {
 	if rrule.WeekStart != nil {
 		str.WriteString(";WKST=")
 		str.WriteString(weekdayString(*rrule.WeekStart))
+	}
+
+	var wroteSkip bool
+	if rrule.InvalidBehavior != OmitInvalid {
+		str.WriteString(";SKIP=")
+		str.WriteString(skipString(rrule.InvalidBehavior))
+		wroteSkip = true
+	}
+
+	if wroteSkip {
+		str.WriteString(";RSCALE=GREGORIAN")
 	}
 
 	return str.String()
@@ -139,6 +155,18 @@ func weekdayString(wd time.Weekday) string {
 		return "SU"
 	}
 
+	return ""
+}
+
+func skipString(skip InvalidBehavior) string {
+	switch skip {
+	case OmitInvalid:
+		return "OMIT"
+	case NextInvalid:
+		return "FORWARD"
+	case PrevInvalid:
+		return "BACKWARD"
+	}
 	return ""
 }
 

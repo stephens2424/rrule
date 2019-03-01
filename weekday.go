@@ -46,7 +46,11 @@ func WeekdayString(wd time.Weekday) string {
 	return wdStr
 }
 
-func weekdaysInYear(t time.Time, wd QualifiedWeekday, ib invalidBehavior) []time.Time {
+// weekdaysInyear returns either all the weekdays in a year, or a slice with one time, which is
+// the nth weekday specified by wd. If wd.N is invalid (e.g. no 53rd week in a year), ib defines
+// whether to return an empty set (OmitInvalid), the last weekday of the given year, or the first
+// weekday of the following year.
+func weekdaysInYear(t time.Time, wd QualifiedWeekday, ib InvalidBehavior) []time.Time {
 	allWDs := make([]time.Time, 0, 5)
 
 	// start on first of year
@@ -75,12 +79,12 @@ func weekdaysInYear(t time.Time, wd QualifiedWeekday, ib invalidBehavior) []time
 		// positive index specified. count to the correct instance
 		if wd.N > len(allWDs) {
 			switch ib {
-			case omitInvalid:
+			case OmitInvalid:
 				return nil
-			case prevInvalid:
+			case PrevInvalid:
 				idx := len(allWDs) - 1
 				return allWDs[idx:idx]
-			case nextInvalid:
+			case NextInvalid:
 				return []time.Time{allWDs[len(allWDs)-1].AddDate(0, 0, 7)}
 			}
 		}
@@ -102,11 +106,11 @@ func weekdaysInYear(t time.Time, wd QualifiedWeekday, ib invalidBehavior) []time
 
 	if idx < 0 || idx > len(allWDs) {
 		switch ib {
-		case omitInvalid:
+		case OmitInvalid:
 			return nil
-		case prevInvalid:
+		case PrevInvalid:
 			return []time.Time{allWDs[0].AddDate(0, 0, -7)}
-		case nextInvalid:
+		case NextInvalid:
 			return allWDs[0:0]
 		}
 	}
@@ -126,4 +130,12 @@ func forwardToWeekday(t time.Time, day time.Weekday) time.Time {
 		t = t.AddDate(0, 0, 1)
 	}
 	return t
+}
+
+func plainWeekdays(q []QualifiedWeekday) []time.Weekday {
+	wd := make([]time.Weekday, len(q))
+	for i, qwd := range q {
+		wd[i] = qwd.WD
+	}
+	return wd
 }

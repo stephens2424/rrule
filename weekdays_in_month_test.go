@@ -13,7 +13,7 @@ func TestWeekdaysInMonth(t *testing.T) {
 		Name     string
 		Time     time.Time
 		Weekdays []QualifiedWeekday
-		IB       invalidBehavior
+		IB       InvalidBehavior
 		Expect   []time.Time
 	}{
 		{

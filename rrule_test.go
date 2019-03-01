@@ -158,6 +158,7 @@ var cases = []struct {
 			ByMonths:   []time.Month{time.August, time.September},
 			BySetPos:   []int{1, 3, -1},
 		},
+		String:   "FREQ=YEARLY;COUNT=4;BYDAY=MO,TU,WE,TH,FR,SA,SU;BYMONTH=8,9;BYSETPOS=1,3,-1",
 		Dates:    []string{"2018-09-30T09:08:07Z", "2019-08-01T09:08:07Z", "2019-08-03T09:08:07Z", "2019-09-30T09:08:07Z"},
 		Terminal: true,
 	},
@@ -338,6 +339,142 @@ var cases = []struct {
 		},
 		NoTeambitionComparison: true,
 	},
+
+	{
+		Name: "leap day monthly omit",
+		RRule: RRule{
+			Frequency: Monthly,
+			Dtstart:   time.Date(2019, time.August, 29, 0, 0, 0, 0, time.UTC),
+			Interval:  6,
+			Count:     4,
+		},
+		String:   "FREQ=MONTHLY;COUNT=4;INTERVAL=6",
+		Terminal: true,
+		Dates: []string{
+			"2019-08-29T00:00:00Z",
+			"2020-02-29T00:00:00Z",
+			"2020-08-29T00:00:00Z",
+			"2021-08-29T00:00:00Z",
+		},
+	},
+
+	{
+		Name: "leap day monthly prev",
+		RRule: RRule{
+			Frequency:       Monthly,
+			Dtstart:         time.Date(2019, time.August, 29, 0, 0, 0, 0, time.UTC),
+			Interval:        6,
+			Count:           4,
+			InvalidBehavior: PrevInvalid,
+		},
+		String:   "FREQ=MONTHLY;COUNT=4;INTERVAL=6;SKIP=BACKWARD;RSCALE=GREGORIAN",
+		Terminal: true,
+		Dates: []string{
+			"2019-08-29T00:00:00Z",
+			"2020-02-29T00:00:00Z",
+			"2020-08-29T00:00:00Z",
+			"2021-02-28T00:00:00Z",
+		},
+		NoTeambitionComparison: true,
+	},
+
+	{
+		Name: "leap day monthly next",
+		RRule: RRule{
+			Frequency:       Monthly,
+			Dtstart:         time.Date(2019, time.August, 29, 0, 0, 0, 0, time.UTC),
+			Interval:        6,
+			Count:           4,
+			InvalidBehavior: NextInvalid,
+		},
+		String:   "FREQ=MONTHLY;COUNT=4;INTERVAL=6;SKIP=FORWARD;RSCALE=GREGORIAN",
+		Terminal: true,
+		Dates: []string{
+			"2019-08-29T00:00:00Z",
+			"2020-02-29T00:00:00Z",
+			"2020-08-29T00:00:00Z",
+			"2021-03-01T00:00:00Z",
+		},
+		NoTeambitionComparison: true,
+	},
+
+	{
+		Name: "leap year day 366 omit",
+		RRule: RRule{
+			Frequency:  Yearly,
+			Dtstart:    time.Date(2016, time.December, 31, 0, 0, 0, 0, time.UTC),
+			Count:      5,
+			ByYearDays: []int{366},
+		},
+		String:   "FREQ=YEARLY;COUNT=5;BYYEARDAY=366",
+		Terminal: true,
+		Dates: []string{
+			"2016-12-31T00:00:00Z",
+			"2020-12-31T00:00:00Z",
+			"2024-12-31T00:00:00Z",
+			"2028-12-31T00:00:00Z",
+			"2032-12-31T00:00:00Z",
+		},
+	},
+
+	{
+		Name: "leap year day 366 next",
+		RRule: RRule{
+			Frequency:       Yearly,
+			Dtstart:         time.Date(2016, time.December, 31, 0, 0, 0, 0, time.UTC),
+			Count:           5,
+			ByYearDays:      []int{366},
+			InvalidBehavior: NextInvalid,
+		},
+		String:   "FREQ=YEARLY;COUNT=5;BYYEARDAY=366;SKIP=FORWARD;RSCALE=GREGORIAN",
+		Terminal: true,
+		Dates: []string{
+			"2016-12-31T00:00:00Z",
+			"2018-01-01T00:00:00Z",
+			"2019-01-01T00:00:00Z",
+			"2020-01-01T00:00:00Z",
+			"2020-12-31T00:00:00Z",
+		},
+		NoTeambitionComparison: true,
+	},
+
+	{
+		Name: "leap year day 366 prev",
+		RRule: RRule{
+			Frequency:       Yearly,
+			Dtstart:         time.Date(2016, time.December, 31, 0, 0, 0, 0, time.UTC),
+			Count:           5,
+			ByYearDays:      []int{366},
+			InvalidBehavior: PrevInvalid,
+		},
+		String:   "FREQ=YEARLY;COUNT=5;BYYEARDAY=366;SKIP=BACKWARD;RSCALE=GREGORIAN",
+		Terminal: true,
+		Dates: []string{
+			"2016-12-31T00:00:00Z",
+			"2017-12-31T00:00:00Z",
+			"2018-12-31T00:00:00Z",
+			"2019-12-31T00:00:00Z",
+			"2020-12-31T00:00:00Z",
+		},
+		NoTeambitionComparison: true,
+	},
+
+	{
+		Name: "rfc weekno",
+		RRule: RRule{
+			Frequency:     Yearly,
+			Dtstart:       time.Date(1997, 5, 12, 9, 0, 0, 0, NewYork()),
+			Count:         3,
+			ByWeekNumbers: []int{20},
+			ByWeekdays:    []QualifiedWeekday{{WD: time.Monday}},
+		},
+		String: "FREQ=YEARLY;COUNT=3;BYDAY=MO;BYWEEKNO=20",
+		Dates: []string{
+			"1997-05-12T09:00:00-04:00",
+			"1998-05-11T09:00:00-04:00",
+			"1999-05-17T09:00:00-04:00",
+		},
+	},
 }
 
 func MustRRule(str string) RRule {
@@ -437,6 +574,10 @@ func BenchmarkRRule(b *testing.B) {
 }
 
 func rruleToROption(r RRule) rrule.ROption {
+	if r.InvalidBehavior != OmitInvalid {
+		panic("cannot convert non-omit SKIP values to teambition")
+	}
+
 	converted := rrule.ROption{
 		Dtstart: r.Dtstart,
 

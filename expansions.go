@@ -77,6 +77,7 @@ func expandByWeekdays(tt []time.Time, weekStart time.Weekday, weekdays ...Qualif
 
 	return e
 }
+
 func expandByMonthDays(tt []time.Time, monthdays ...int) []time.Time {
 	if len(monthdays) == 0 {
 		return tt
@@ -92,7 +93,7 @@ func expandByMonthDays(tt []time.Time, monthdays ...int) []time.Time {
 	return e
 }
 
-func expandByYearDays(tt []time.Time, yeardays ...int) []time.Time {
+func expandByYearDays(tt []time.Time, ib InvalidBehavior, yeardays ...int) []time.Time {
 	if len(yeardays) == 0 {
 		return tt
 	}
@@ -100,34 +101,81 @@ func expandByYearDays(tt []time.Time, yeardays ...int) []time.Time {
 	e := make([]time.Time, 0, len(tt)*len(yeardays))
 	for _, t := range tt {
 		yearStart := time.Date(t.Year(), time.January, 1, t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location())
+		startYear := yearStart.Year()
 
 		for _, yd := range yeardays {
-			e = append(e, yearStart.AddDate(0, 0, yd))
+			added := yearStart.AddDate(0, 0, yd-1) // subtract one because we start on the 1st, so if we want yearday 1, we actually want to advance 0.
+			if added.Year() != startYear {
+				switch ib {
+				case OmitInvalid:
+					// do nothing
+				case NextInvalid:
+					e = append(e, added)
+				case PrevInvalid:
+					e = append(e, added.AddDate(0, 0, -1))
+				}
+			} else {
+				e = append(e, added)
+			}
 		}
 	}
 
 	return e
 }
 
-func expandByWeekNumbers(tt []time.Time, weekStarts time.Weekday, weekNumbers ...int) []time.Time {
+func expandByWeekNumbers(tt []time.Time, ib InvalidBehavior, weekStarts time.Weekday, byWeekdays []time.Weekday, weekNumbers ...int) []time.Time {
 	if len(weekNumbers) == 0 {
 		return tt
 	}
 
 	e := make([]time.Time, 0, len(tt)*len(weekNumbers))
 	for _, t := range tt {
-		yearStart := time.Date(t.Year(), time.January, 1, t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location())
-		yearStart = forwardToWeekday(yearStart, t.Weekday())
+		ys := yearStart(t, weekStarts)
+
+		byWeekdays := byWeekdays
+		if len(byWeekdays) == 0 {
+			// NOTE: the spec is not 100% clear on what to do in this case.
+			// rrule.js, for instance, will default to returning the full
+			// week. lib-recur seems to copy the weekday from the input
+			// time. I'm going with the latter, since it seems more consistent
+			// with the behavior you'd get on a BYMONTH clause.
+			byWeekdays = []time.Weekday{t.Weekday()}
+		}
 
 		for _, w := range weekNumbers {
-			e = append(e, yearStart.AddDate(0, 0, (w-1)*7))
+			ws := ys.AddDate(0, 0, (w-1)*7)
+
+			if weekYearStart := yearStart(ws, weekStarts); weekYearStart.Year() != ys.Year() {
+				// check that the week we generated is still within the proper
+				// year, or if it ran over because the year did not have enough
+				// weeks
+
+				nextYearStart := yearStart(ys.AddDate(1, 0, 0), weekStarts)
+				switch ib {
+				case OmitInvalid:
+					// do nothing
+				case NextInvalid:
+					for _, wd := range byWeekdays {
+						e = append(e, forwardToWeekday(nextYearStart, wd))
+					}
+				case PrevInvalid:
+					for _, wd := range byWeekdays {
+						e = append(e, backToWeekday(nextYearStart, wd))
+					}
+				}
+				continue
+			}
+
+			for _, wd := range byWeekdays {
+				e = append(e, forwardToWeekday(ws, wd))
+			}
 		}
 	}
 
 	return e
 }
 
-func expandByMonths(tt []time.Time, ib invalidBehavior, months ...time.Month) []time.Time {
+func expandByMonths(tt []time.Time, ib InvalidBehavior, months ...time.Month) []time.Time {
 	if len(months) == 0 {
 		return tt
 	}
@@ -138,13 +186,13 @@ func expandByMonths(tt []time.Time, ib invalidBehavior, months ...time.Month) []
 			set := time.Date(t.Year(), m, t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location())
 			if set.Month() != m {
 				switch ib {
-				case prevInvalid:
+				case PrevInvalid:
 					set = time.Date(t.Year(), t.Month()+1, -1, t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location())
 					e = append(e, set)
-				case nextInvalid:
+				case NextInvalid:
 					set = time.Date(t.Year(), t.Month()+1, 1, t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), t.Location())
 					e = append(e, set)
-				case omitInvalid:
+				case OmitInvalid:
 					// do nothing
 				}
 			} else {
@@ -160,7 +208,7 @@ func expandByMonths(tt []time.Time, ib invalidBehavior, months ...time.Month) []
 // bySetPos is not nil, it is assumed tt is the full set of instances within the
 // monthly iteration, and only the instances matching the posisions of bySetPos
 // are returned. This is an optimization.
-func expandMonthByWeekdays(tt []time.Time, ib invalidBehavior, bySetPos []int, weekdays ...QualifiedWeekday) []time.Time {
+func expandMonthByWeekdays(tt []time.Time, ib InvalidBehavior, bySetPos []int, weekdays ...QualifiedWeekday) []time.Time {
 	if len(weekdays) == 0 {
 		return tt
 	}
@@ -173,7 +221,7 @@ func expandMonthByWeekdays(tt []time.Time, ib invalidBehavior, bySetPos []int, w
 	return e
 }
 
-func expandYearByWeekdays(tt []time.Time, ib invalidBehavior, weekdays ...QualifiedWeekday) []time.Time {
+func expandYearByWeekdays(tt []time.Time, ib InvalidBehavior, weekdays ...QualifiedWeekday) []time.Time {
 	if len(weekdays) == 0 {
 		return tt
 	}

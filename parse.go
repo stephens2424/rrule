@@ -149,19 +149,19 @@ func ParseRRule(str string) (RRule, error) {
 			}
 			rrule.Interval = i
 		case "BYSECOND":
-			ints, err := parseInts(value)
+			ints, err := parseInts(value, 0, 60, true)
 			if err != nil {
 				return rrule, err
 			}
 			rrule.BySeconds = ints
 		case "BYMINUTE":
-			ints, err := parseInts(value)
+			ints, err := parseInts(value, 0, 59, true)
 			if err != nil {
 				return rrule, err
 			}
 			rrule.ByMinutes = ints
 		case "BYHOUR":
-			ints, err := parseInts(value)
+			ints, err := parseInts(value, 0, 23, true)
 			if err != nil {
 				return rrule, err
 			}
@@ -173,19 +173,19 @@ func ParseRRule(str string) (RRule, error) {
 			}
 			rrule.ByWeekdays = wds
 		case "BYMONTHDAY":
-			ints, err := parseInts(value)
+			ints, err := parseInts(value, -31, 31, false)
 			if err != nil {
 				return rrule, err
 			}
 			rrule.ByMonthDays = ints
 		case "BYYEARDAY":
-			ints, err := parseInts(value)
+			ints, err := parseInts(value, -366, 366, true)
 			if err != nil {
 				return rrule, err
 			}
 			rrule.ByYearDays = ints
 		case "BYWEEKNO":
-			ints, err := parseInts(value)
+			ints, err := parseInts(value, -53, 53, false)
 			if err != nil {
 				return rrule, err
 			}
@@ -197,7 +197,7 @@ func ParseRRule(str string) (RRule, error) {
 			}
 			rrule.ByMonths = months
 		case "BYSETPOS":
-			ints, err := parseInts(value)
+			ints, err := parseInts(value, -366, 366, false)
 			if err != nil {
 				return rrule, err
 			}
@@ -208,6 +208,18 @@ func ParseRRule(str string) (RRule, error) {
 				return rrule, err
 			}
 			rrule.WeekStart = &wd
+		case "SKIP":
+			skip, err := parseSkip(value)
+			if err != nil {
+				return rrule, err
+			}
+			rrule.InvalidBehavior = skip
+		case "RSCALE":
+			err := parseRScale(value)
+			if err != nil {
+				return rrule, err
+			}
+
 		default:
 			return rrule, fmt.Errorf("%q is not a supported RRULE part", directive)
 		}
@@ -217,7 +229,7 @@ func ParseRRule(str string) (RRule, error) {
 	return rrule, err
 }
 
-func parseInts(str string) ([]int, error) {
+func parseInts(str string, min, max int, allowZero bool) ([]int, error) {
 	if len(str) == 0 {
 		return nil, nil
 	}
@@ -225,10 +237,26 @@ func parseInts(str string) ([]int, error) {
 	parts := strings.Split(str, ",")
 	ints := make([]int, len(parts))
 	for i, p := range parts {
-		ints[i], err = strconv.Atoi(p)
+		var currentInt int
+
+		currentInt, err = strconv.Atoi(p)
 		if err != nil {
 			return nil, err
 		}
+
+		if currentInt == 0 && !allowZero {
+			return nil, fmt.Errorf("zero is not valid")
+		}
+
+		if currentInt < min {
+			return nil, fmt.Errorf("%d is below minimum %d", currentInt, min)
+		}
+
+		if currentInt > max {
+			return nil, fmt.Errorf("%d is above maximum %d", currentInt, max)
+		}
+
+		ints[i] = currentInt
 	}
 
 	return ints, nil
@@ -329,5 +357,27 @@ func strToFreq(str string) (Frequency, error) {
 		return Yearly, nil
 	default:
 		return Yearly, fmt.Errorf("frequency %q is not valid", str)
+	}
+}
+
+func parseSkip(str string) (InvalidBehavior, error) {
+	switch strings.ToLower(str) {
+	case "omit":
+		return OmitInvalid, nil
+	case "backward":
+		return PrevInvalid, nil
+	case "forward":
+		return NextInvalid, nil
+	}
+
+	return OmitInvalid, fmt.Errorf("skip value %v is not valid", str)
+}
+
+func parseRScale(str string) error {
+	switch strings.ToLower(str) {
+	case "gregorian", "gregory":
+		return nil
+	default:
+		return fmt.Errorf("invalid rscale %q: only gregorian is supported", str)
 	}
 }

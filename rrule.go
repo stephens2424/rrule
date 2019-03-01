@@ -3,6 +3,10 @@
 //     FREQ=WEEKLY;BYDAY=MO;INTERVAL=2
 //
 // would generate occurrences every other week on Monday.
+//
+// RFC 7529 is partially implemented. The SKIP and RSCALE clauses are supported, but
+// only Gregorian is implemented. As such, months with the L indicator are also
+// not supported, since these have no use in Gregorian.
 package rrule
 
 import (
@@ -42,7 +46,9 @@ type RRule struct {
 	ByYearDays    []int // 1 to 366
 	BySetPos      []int // -366 to 366
 
-	ib invalidBehavior
+	// InvalidBehavior defines how to behave when a generated date wouldn't
+	// exist, like February 31st.
+	InvalidBehavior InvalidBehavior
 
 	WeekStart *time.Weekday // if nil, Monday
 }
@@ -335,6 +341,8 @@ func setMonthly(rrule RRule) *iterator {
 		interval = rrule.Interval
 	}
 
+	checkLeapDay := current.Day() >= 29
+
 	return &iterator{
 		minTime:  start,
 		maxTime:  timeOrMax(rrule.Until),
@@ -342,7 +350,35 @@ func setMonthly(rrule RRule) *iterator {
 		queueCap: rrule.Count,
 		next: func() *time.Time {
 			ret := current // copy current
+
 			current = current.AddDate(0, interval, 0)
+
+			// check that we advanced the correct
+			// number of months, e.g. if we meant to hit
+			// a feb 29th, but it's not a leap year.
+			//
+			// because we only support gregorian, we only
+			// need this logic on rules that key on the 29th,
+			// 30th, or 31st of a month
+			if checkLeapDay {
+				diff := monthDiff(ret, current)
+				if diff%interval != 0 {
+					switch rrule.InvalidBehavior {
+					case PrevInvalid:
+						current = current.AddDate(0, 0, -1)
+					case NextInvalid:
+						// time.AddDate already behaves this way.
+					case OmitInvalid:
+						mult := 1
+						for diff%interval != 0 {
+							mult++
+							current = ret.AddDate(0, interval*mult, 0)
+							diff = monthDiff(ret, current)
+						}
+					}
+				}
+			}
+
 			return &ret
 		},
 
@@ -371,7 +407,7 @@ func setMonthly(rrule RRule) *iterator {
 			if len(rrule.ByMonthDays) > 0 {
 				tt = expandByMonthDays(tt, rrule.ByMonthDays...)
 			} else if len(rrule.ByWeekdays) > 0 {
-				tt = expandMonthByWeekdays(tt, rrule.ib, rrule.BySetPos, rrule.ByWeekdays...)
+				tt = expandMonthByWeekdays(tt, rrule.InvalidBehavior, rrule.BySetPos, rrule.ByWeekdays...)
 			}
 			return tt
 		},
@@ -476,6 +512,8 @@ func setYearly(rrule RRule) *iterator {
 
 	current := start
 
+	plainByDay := plainWeekdays(rrule.ByWeekdays)
+
 	return &iterator{
 		minTime:  start,
 		maxTime:  timeOrMax(rrule.Until),
@@ -515,16 +553,17 @@ func setYearly(rrule RRule) *iterator {
 			tt = expandByHours(tt, rrule.ByHours...)
 
 			tt = expandByMonthDays(tt, rrule.ByMonthDays...)
-			tt = expandByYearDays(tt, rrule.ByYearDays...)
-			tt = expandByWeekNumbers(tt, rrule.weekStart(), rrule.ByWeekNumbers...)
-			tt = expandByMonths(tt, rrule.ib, rrule.ByMonths...)
+			tt = expandByYearDays(tt, rrule.InvalidBehavior, rrule.ByYearDays...)
+			tt = expandByMonths(tt, rrule.InvalidBehavior, rrule.ByMonths...)
 
 			// see note 2 on page 44 of RFC 5545, including erratum 3779.
 			if len(rrule.ByYearDays) == 0 && len(rrule.ByMonthDays) == 0 {
 				if len(rrule.ByMonths) != 0 {
-					tt = expandMonthByWeekdays(tt, rrule.ib, nil, rrule.ByWeekdays...)
+					tt = expandMonthByWeekdays(tt, rrule.InvalidBehavior, nil, rrule.ByWeekdays...)
+				} else if len(rrule.ByWeekNumbers) != 0 {
+					tt = expandByWeekNumbers(tt, rrule.InvalidBehavior, rrule.weekStart(), plainByDay, rrule.ByWeekNumbers...)
 				} else {
-					tt = expandYearByWeekdays(tt, rrule.ib, rrule.ByWeekdays...)
+					tt = expandYearByWeekdays(tt, rrule.InvalidBehavior, rrule.ByWeekdays...)
 				}
 			}
 
